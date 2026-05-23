@@ -1,0 +1,144 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Simulated Roles:
+// "SUPER_ADMIN", "MANAGER", "TEAM_LEADER", "SALES_EXEC", "ACCOUNT_MANAGER", "FINANCE"
+
+// Simulated LeadStages:
+// "NEW", "INTERESTED", "PROPOSAL_SHARED", "PAYMENT_COMPLETED", "RNR_DNP", "NOT_INTERESTED"
+
+// Simulated ActivityTypes:
+// "STAGE_CHANGE", "NOTE", "CALL", "EMAIL", "WHATSAPP"
+
+// Simulated InvoiceStatuses:
+// "DRAFT", "SENT", "PARTIALLY_PAID", "PAID", "OVERDUE"
+
+model User {
+  id           String         @id @default(cuid())
+  name         String
+  email        String         @unique
+  password     String
+  role         String         // e.g. "SUPER_ADMIN", "SALES_EXEC", etc.
+  teamLeaderId String?
+  teamLead     User?          @relation("TeamMembers", fields: [teamLeaderId], references: [id])
+  teamMembers  User[]         @relation("TeamMembers")
+  leads        Lead[]         @relation("AssignedLeads")
+  activities   LeadActivity[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Lead {
+  id           String         @id @default(cuid())
+  name         String
+  phone        String         @unique
+  email        String?        @unique
+  source       String
+  stage        String         @default("NEW") // default NEW
+  assignedToId String?
+  assignedTo   User?          @relation("AssignedLeads", fields: [assignedToId], references: [id])
+  notes        String?
+  activities   LeadActivity[]
+  client       Client?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model LeadActivity {
+  id           String       @id @default(cuid())
+  leadId       String
+  lead         Lead         @relation(fields: [leadId], references: [id])
+  userId       String
+  user         User         @relation(fields: [userId], references: [id])
+  type         String       // "STAGE_CHANGE", "NOTE", "CALL", "EMAIL", "WHATSAPP"
+  description  String
+  callDuration Int?         // in seconds, for CALL type
+  createdAt    DateTime     @default(now())
+}
+
+model Client {
+  id           String      @id @default(cuid())
+  leadId       String      @unique
+  lead         Lead        @relation(fields: [leadId], references: [id])
+  companyName  String
+  contactName  String
+  phone        String
+  email        String
+  amcStartDate DateTime?
+  amcEndDate   DateTime?
+  invoices     Invoice[]
+  commitment   Commitment?
+  handoff      Handoff?
+  createdAt    DateTime    @default(now())
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id])
+  amount        Float
+  gstType       String        // "CGST_SGST" or "IGST"
+  gstRate       Float
+  gstAmount     Float
+  totalAmount   Float
+  status        String        @default("DRAFT") // "DRAFT", "SENT", "PARTIALLY_PAID", "PAID", "OVERDUE"
+  payments      Payment[]
+  createdAt     DateTime      @default(now())
+  dueDate       DateTime?
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  amount     Float
+  slabNumber Int      // 1, 2, 3 etc.
+  paidAt     DateTime @default(now())
+  notes      String?
+}
+
+model Commitment {
+  id                String   @id @default(cuid())
+  clientId          String   @unique
+  client            Client   @relation(fields: [clientId], references: [id])
+  agentCount        Int
+  talkTimeTarget    Int      // in minutes per day
+  revenueCommitment Float
+  windowStart       DateTime @default(now())
+  windowEnd         DateTime // auto = windowStart + 60 days
+  actualTalkTime    Int      @default(0)
+  createdAt         DateTime @default(now())
+}
+
+model Handoff {
+  id               String    @id @default(cuid())
+  clientId         String    @unique
+  client           Client    @relation(fields: [clientId], references: [id])
+  accountManagerId String
+  status           String    @default("PENDING") // "PENDING", "COMPLETED", "BREACHED"
+  handoffDate      DateTime?
+  meetingDone      Boolean   @default(false)
+  introMailSent    Boolean   @default(false)
+  onboardingDone   Boolean   @default(false)
+  activationDone   Boolean   @default(false)
+  slaBreached      Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+}
+
+model GSTSlab {
+  id        String   @id @default(cuid())
+  label     String   // e.g. "GST 18%"
+  rate      Float    // e.g. 18.0
+  type      String   // "CGST_SGST" or "IGST"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
