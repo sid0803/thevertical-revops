@@ -104,8 +104,8 @@ const InvoiceDetail = () => {
     setActionSuccess('');
     try {
       const response = await api.post(`/billing/invoices/${id}/slabs/${slabId}/pay`);
-      setInvoice(response.data.invoice);
-      setSlabs(response.data.invoice.slabs || []);
+      setInvoice(response.data);
+      setSlabs(response.data.slabs || []);
       setActionSuccess(`Slab #${slabNumber} marked as Paid! Commitment revenue synchronized.`);
     } catch (err) {
       setActionError(err.response?.data?.message || 'Failed to record slab payment.');

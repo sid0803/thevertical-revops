@@ -1,6 +1,6 @@
 // frontend/src/pages/Leads.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Search, Filter, Calendar, AlertTriangle, UserPlus, Phone, Mail, FileText, ArrowRight, X } from 'lucide-react';
@@ -111,7 +111,13 @@ const Leads = () => {
       fetchLeads();
     } catch (err) {
       if (err.response?.status === 409) {
-        setFormError('A lead with this phone number or email already exists.');
+        const dupId = err.response.data.existingLeadId;
+        const dupName = err.response.data.existingLeadName;
+        setFormError(
+          <span>
+            This lead already exists. View details: <Link to={`/leads/${dupId}`} className="underline font-bold text-blue-600 hover:text-blue-800">{dupName}</Link>
+          </span>
+        );
       } else {
         setFormError(err.response?.data?.message || 'Failed to create lead.');
       }
