@@ -8,24 +8,22 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#1a1a2e',
-          light: '#2a2a4e',
-          dark: '#0f0f1c',
+          dark: '#0A0F1E',    // deep navy - sidebar bg
+          mid: '#111827',     // dark gray - secondary surface
         },
         accent: {
-          DEFAULT: '#0ea5e9',
-          light: '#38bdf8',
-          dark: '#0284c7',
+          blue: '#2563EB',    // electric blue - buttons, highlights
+          cyan: '#06B6D4',    // cyan - hover states, tags
         },
-        sidebar: {
-          DEFAULT: '#1e293b',
-          light: '#334155',
-          dark: '#0f172a',
-        },
-        success: '#22c55e',
-        warning: '#f59e0b',
-        danger: '#ef4444',
-        brandBg: '#f8fafc',
+        success: '#10B981',
+        warning: '#F59E0B',
+        danger: '#EF4444',
+        brandBg: '#F8FAFC',   // page background
+        cardWhite: '#FFFFFF',
+        borderSlate: '#E2E8F0',
+        textPrimary: '#1E293B',
+        textSecondary: '#64748B',
+        textMuted: '#94A3B8',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

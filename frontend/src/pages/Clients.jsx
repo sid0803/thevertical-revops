@@ -92,7 +92,7 @@ const Clients = () => {
 
       {loading ? (
         <div className="flex h-64 items-center justify-center rounded-xl bg-white border border-slate-100 shadow-sm">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent border-t-transparent"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent-blue border-t-transparent"></div>
         </div>
       ) : error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 p-6 text-center text-red-500">
@@ -159,13 +159,13 @@ const Clients = () => {
                     <div className="space-y-3 border-t border-slate-100 pt-4">
                       <div className="flex items-center justify-between">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
-                          <Clock className="h-4 w-4 text-accent" />
+                          <Clock className="h-4 w-4 text-accent-blue" />
                           <span>60-Day SLA Commitment Window</span>
                         </h4>
                         {['SUPER_ADMIN', 'ACCOUNT_MANAGER'].includes(user.role) && (
                           <button
                             onClick={() => openEditModal(client)}
-                            className="text-xs text-accent font-semibold hover:text-accent-dark flex items-center space-x-1"
+                            className="text-xs text-accent-blue font-semibold hover:text-blue-750 flex items-center space-x-1"
                           >
                             <Edit3 className="h-3.5 w-3.5" />
                             <span>Edit Targets</span>
@@ -185,7 +185,7 @@ const Clients = () => {
                         </div>
                         <div>
                           <span className="text-[10px] text-slate-400 block font-semibold">Attribution Window</span>
-                          <span className="text-sm font-bold text-accent">{daysLeft} days left</span>
+                          <span className="text-sm font-bold text-accent-blue">{daysLeft} days left</span>
                         </div>
                       </div>
 
@@ -197,7 +197,7 @@ const Clients = () => {
                         </div>
                         <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
                           <div
-                            className="h-full bg-accent rounded-full transition-all duration-500"
+                            className="h-full bg-accent-blue rounded-full transition-all duration-500"
                             style={{
                               width: `${Math.min(
                                 100,
@@ -272,7 +272,7 @@ const Clients = () => {
                   min="0"
                   value={commitmentData.agentCount}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent-blue"
                 />
               </div>
 
@@ -287,7 +287,7 @@ const Clients = () => {
                   min="0"
                   value={commitmentData.talkTimeTarget}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent-blue"
                 />
               </div>
 
@@ -302,7 +302,7 @@ const Clients = () => {
                   min="0"
                   value={commitmentData.revenueCommitment}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent-blue"
                 />
               </div>
 
@@ -317,7 +317,7 @@ const Clients = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 rounded-lg bg-accent py-2.5 font-semibold text-white hover:bg-accent-dark transition disabled:opacity-50"
+                  className="flex-1 rounded bg-accent-blue py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-blue-750 transition disabled:opacity-50"
                 >
                   {submitting ? 'Updating...' : 'Save Targets'}
                 </button>

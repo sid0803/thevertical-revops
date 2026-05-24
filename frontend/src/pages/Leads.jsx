@@ -169,9 +169,9 @@ const Leads = () => {
         {['SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'].includes(user.role) && (
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="flex items-center space-x-2 rounded-lg bg-accent px-4 py-2.5 font-semibold text-white shadow-lg shadow-accent/20 hover:bg-accent-dark transition active:scale-95"
+            className="flex items-center space-x-2 rounded bg-accent-blue px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:bg-blue-750 transition active:scale-95"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
             <span>New Lead</span>
           </button>
         )}
@@ -187,7 +187,7 @@ const Leads = () => {
             placeholder="Search leads by name, phone, email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm text-slate-700 outline-none transition focus:border-accent focus:bg-white"
+            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm text-slate-700 outline-none transition focus:border-accent-blue focus:bg-white"
           />
         </div>
 
@@ -198,7 +198,7 @@ const Leads = () => {
             <select
               value={selectedStage}
               onChange={(e) => setSelectedStage(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 outline-none focus:border-accent"
+              className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 outline-none focus:border-accent-blue"
             >
               <option value="">All Stages</option>
               {stages.map(s => (
@@ -211,7 +211,7 @@ const Leads = () => {
             <select
               value={selectedAssignee}
               onChange={(e) => setSelectedAssignee(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 outline-none focus:border-accent"
+              className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 outline-none focus:border-accent-blue"
             >
               <option value="">All Assignees</option>
               {users.filter(u => ['SALES_EXEC', 'TEAM_LEADER'].includes(u.role)).map(u => (
@@ -227,14 +227,14 @@ const Leads = () => {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 outline-none focus:border-accent"
+              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 outline-none focus:border-accent-blue"
             />
             <span className="text-slate-400 text-xs">to</span>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 outline-none focus:border-accent"
+              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 outline-none focus:border-accent-blue"
             />
           </div>
         </div>
@@ -243,7 +243,7 @@ const Leads = () => {
       {/* Leads Table */}
       {loading ? (
         <div className="flex h-64 items-center justify-center rounded-xl border border-slate-100 bg-white">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent border-t-transparent"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent-blue border-t-transparent"></div>
         </div>
       ) : error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 p-6 text-center text-red-500">
@@ -364,7 +364,7 @@ const Leads = () => {
                         value={formData.name}
                         onChange={handleInputChange}
                         placeholder="Lead full name"
-                        className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none focus:border-accent"
+                        className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none focus:border-accent-blue"
                       />
                     </div>
                   </div>
@@ -382,7 +382,7 @@ const Leads = () => {
                         value={formData.phone}
                         onChange={handleInputChange}
                         placeholder="10-digit mobile number"
-                        className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none focus:border-accent"
+                        className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none focus:border-accent-blue"
                       />
                     </div>
                   </div>
@@ -399,7 +399,7 @@ const Leads = () => {
                         value={formData.email}
                         onChange={handleInputChange}
                         placeholder="example@domain.com"
-                        className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none focus:border-accent"
+                        className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none focus:border-accent-blue"
                       />
                     </div>
                   </div>
@@ -414,7 +414,7 @@ const Leads = () => {
                         required
                         value={formData.source}
                         onChange={handleInputChange}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-accent"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-accent-blue"
                       >
                         {sources.map(s => (
                           <option key={s} value={s}>{s}</option>
@@ -431,7 +431,7 @@ const Leads = () => {
                           name="assignedToId"
                           value={formData.assignedToId}
                           onChange={handleInputChange}
-                          className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-accent"
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-accent-blue"
                         >
                           <option value="">Unassigned</option>
                           {users.filter(u => ['SALES_EXEC', 'TEAM_LEADER'].includes(u.role)).map(u => (
@@ -454,7 +454,7 @@ const Leads = () => {
                         value={formData.notes}
                         onChange={handleInputChange}
                         placeholder="Add initial notes or request info..."
-                        className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none focus:border-accent resize-none"
+                        className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none focus:border-accent-blue resize-none"
                       />
                     </div>
                   </div>
@@ -470,7 +470,7 @@ const Leads = () => {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="flex-1 rounded-lg bg-accent py-2.5 font-semibold text-white hover:bg-accent-dark transition disabled:opacity-50"
+                      className="flex-1 rounded bg-accent-blue py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-blue-750 transition disabled:opacity-50"
                     >
                       {submitting ? 'Creating...' : 'Create Lead'}
                     </button>

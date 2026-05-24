@@ -38,7 +38,7 @@ async function getAccessibleUserIds(user) {
 }
 
 // @route   GET /api/leads
-// @desc    Get all leads (filtered by role)
+// @desc    Get all leads (filtered by role + query params)
 router.get('/', verifyToken, async (req, res) => {
   try {
     const userIds = await getAccessibleUserIds(req.user);
@@ -48,8 +48,9 @@ router.get('/', verifyToken, async (req, res) => {
       whereClause.assignedToId = { in: userIds };
     }
 
-    // Apply stage/assignedTo filters if passed in query
-    const { stage, assignedToId, from, to } = req.query;
+    // Apply stage, assignedTo, search, date filters
+    const { stage, assignedToId, from, to, search } = req.query;
+    
     if (stage) {
       whereClause.stage = stage;
     }
@@ -60,6 +61,13 @@ router.get('/', verifyToken, async (req, res) => {
       whereClause.createdAt = {};
       if (from) whereClause.createdAt.gte = new Date(from);
       if (to) whereClause.createdAt.lte = new Date(to);
+    }
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search } },
+        { phone: { contains: search } },
+        { company: { contains: search } }
+      ];
     }
 
     const leads = await prisma.lead.findMany({
@@ -80,7 +88,7 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // @route   GET /api/leads/search
-// @desc    Global search leads by name or phone
+// @desc    Global search leads by name or phone or company
 router.get('/search', verifyToken, async (req, res) => {
   try {
     const { q } = req.query;
@@ -92,7 +100,8 @@ router.get('/search', verifyToken, async (req, res) => {
     let whereClause = {
       OR: [
         { name: { contains: q } },
-        { phone: { contains: q } }
+        { phone: { contains: q } },
+        { company: { contains: q } }
       ]
     };
 
@@ -107,7 +116,8 @@ router.get('/search', verifyToken, async (req, res) => {
         id: true,
         name: true,
         phone: true,
-        stage: true
+        stage: true,
+        company: true
       }
     });
 
@@ -119,13 +129,13 @@ router.get('/search', verifyToken, async (req, res) => {
 });
 
 // @route   POST /api/leads
-// @desc    Create a new lead (with duplicate checking)
+// @desc    Create a new lead (with strict duplicate check)
 router.post('/', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
   try {
-    const { name, phone, email, source, notes, assignedToId } = req.body;
+    const { name, phone, email, source, company, notes, assignedToId } = req.body;
 
     if (!name || !phone || !source) {
-      return res.status(400).json({ message: 'Name, contact phone, and source are mandatory' });
+      return res.status(400).json({ message: 'Name, phone, and source are mandatory fields' });
     }
 
     // Duplicate check: check if phone or email already exists
@@ -140,12 +150,12 @@ router.post('/', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_
 
     if (duplicate) {
       return res.status(409).json({
-        message: 'Lead already exists with this phone or email',
-        leadId: duplicate.id
+        error: 'Lead already exists',
+        existingLeadId: duplicate.id,
+        existingLeadName: duplicate.name
       });
     }
 
-    // Default assignee: if not provided and creator is sales exec or team lead, assign to creator
     let assignedId = assignedToId;
     if (!assignedId && (req.user.role === 'SALES_EXEC' || req.user.role === 'TEAM_LEADER')) {
       assignedId = req.user.id;
@@ -157,6 +167,7 @@ router.post('/', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_
         phone,
         email,
         source,
+        company,
         notes,
         assignedToId: assignedId,
         stage: 'NEW'
@@ -169,7 +180,7 @@ router.post('/', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_
         leadId: newLead.id,
         userId: req.user.id,
         type: 'STAGE_CHANGE',
-        description: `Lead created in stage NEW and assigned to ${assignedId ? 'user' : 'nobody'}`
+        description: `Lead created in stage NEW`
       }
     });
 
@@ -179,7 +190,7 @@ router.post('/', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_
           leadId: newLead.id,
           userId: req.user.id,
           type: 'NOTE',
-          description: `Initial Note: ${notes}`
+          description: `Initial note: ${notes}`
         }
       });
     }
@@ -240,7 +251,7 @@ router.put('/:id/stage', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
     const { stage } = req.body;
 
     if (!stage) {
-      res.status(400).json({ message: 'Stage is required' });
+      return res.status(400).json({ message: 'Stage is required' });
     }
 
     const lead = await prisma.lead.findUnique({
@@ -288,9 +299,9 @@ router.put('/:id/stage', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
     });
 
     // Create STAGE_CHANGE activity logs
-    let description = `Stage changed from ${currentStage} to ${stage}`;
+    let description = `${currentStage} → ${stage}`;
     
-    // STEP 4: Deal Closure Trigger: When stage becomes PAYMENT_COMPLETED -> auto-create Client profile, Handoff ticket, Commitment
+    // Auto-create client on PAYMENT_COMPLETED
     if (stage === 'PAYMENT_COMPLETED' && !lead.client) {
       // Find an Account Manager to assign handoff to (defaulting to the seeded AM User, or anyone with role ACCOUNT_MANAGER)
       const amUser = await prisma.user.findFirst({
@@ -302,21 +313,26 @@ router.put('/:id/stage', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
       const client = await prisma.client.create({
         data: {
           leadId: lead.id,
-          companyName: `${lead.name} Corp`,
+          companyName: lead.company || `${lead.name} Corp`,
           contactName: lead.name,
           phone: lead.phone,
           email: lead.email || `${lead.name.toLowerCase().replace(/ /g, '')}@example.com`,
+          state: 'Maharashtra',
           amcStartDate: new Date(),
           amcEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
         }
       });
 
-      // Create Handoff Ticket
+      const now = new Date();
+
+      // Create Handoff Ticket with SLA deadlines (48h meeting, 5d onboarding)
       await prisma.handoff.create({
         data: {
           clientId: client.id,
           accountManagerId: amUserId,
-          status: 'PENDING'
+          status: 'PENDING',
+          slaDeadline: new Date(now.getTime() + 48 * 60 * 60 * 1000),
+          onboardingDeadline: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000)
         }
       });
 
@@ -327,12 +343,12 @@ router.put('/:id/stage', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
           agentCount: 0,
           talkTimeTarget: 0,
           revenueCommitment: 0.0,
-          windowStart: new Date(),
-          windowEnd: new Date(new Date().setDate(new Date().getDate() + 60))
+          windowStart: now,
+          windowEnd: new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000),
+          actualTalkTime: 0,
+          actualRevenue: 0.0
         }
       });
-
-      description += `. Automated handoff trigger: Created Client, Handoff ticket, and 60-day Commitment tracker.`;
     }
 
     await prisma.leadActivity.create({
@@ -356,9 +372,9 @@ router.put('/:id/stage', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
 router.post('/:id/note', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { content } = req.body;
+    const { description } = req.body;
 
-    if (!content) {
+    if (!description) {
       return res.status(400).json({ message: 'Note content is required' });
     }
 
@@ -367,7 +383,7 @@ router.post('/:id/note', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
         leadId: id,
         userId: req.user.id,
         type: 'NOTE',
-        description: content
+        description
       },
       include: {
         user: {
@@ -388,13 +404,14 @@ router.post('/:id/note', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
 router.post('/:id/call', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { description, duration } = req.body; // duration in seconds
+    const { duration, description } = req.body; // duration in minutes
 
     if (!description || duration === undefined) {
-      return res.status(400).json({ message: 'Description and duration (in seconds) are required' });
+      return res.status(400).json({ message: 'Description and duration (in minutes) are required' });
     }
 
-    const durationMins = Math.ceil(duration / 60);
+    const durationMins = parseInt(duration);
+    const durationSecs = durationMins * 60;
 
     const activity = await prisma.leadActivity.create({
       data: {
@@ -402,7 +419,7 @@ router.post('/:id/call', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
         userId: req.user.id,
         type: 'CALL',
         description: `${description} (${durationMins} min call)`,
-        callDuration: parseInt(duration)
+        callDuration: durationSecs
       },
       include: {
         user: {
@@ -411,7 +428,7 @@ router.post('/:id/call', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
       }
     });
 
-    // If lead is client, update active commitment actualTalkTime
+    // If lead has client, update active commitment actualTalkTime
     const lead = await prisma.lead.findUnique({
       where: { id },
       include: { client: { include: { commitment: true } } }

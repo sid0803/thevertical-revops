@@ -200,6 +200,7 @@ router.get('/attribution', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', '
         handoff: true,
         commitment: true,
         invoices: {
+          include: { slabs: true },
           orderBy: { createdAt: 'asc' } // First invoice is initial sale
         }
       }
@@ -251,7 +252,7 @@ router.get('/attribution', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', '
           notes = 'Expansion within 60-day window (100% Sales Exec)';
         } else {
           // Check notes for "joint" split
-          const isJoint = inv.status.includes('joint') || (inv.payments && inv.payments.some(p => p.notes?.toLowerCase().includes('joint')));
+          const isJoint = inv.status.includes('joint') || (inv.slabs && inv.slabs.some(s => s.paymentNote?.toLowerCase().includes('joint')));
           
           if (isJoint) {
             // Rule 4: Joint expansion post-window -> 70% Sales Exec / 30% AM

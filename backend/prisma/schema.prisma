@@ -19,22 +19,33 @@ datasource db {
 // "STAGE_CHANGE", "NOTE", "CALL", "EMAIL", "WHATSAPP"
 
 // Simulated InvoiceStatuses:
-// "DRAFT", "SENT", "PARTIALLY_PAID", "PAID", "OVERDUE"
+// "DRAFT", "PARTIALLY_PAID", "PAID", "OVERDUE"
+
+// Simulated HandoffStatuses:
+// "PENDING", "IN_PROGRESS", "COMPLETED", "SLA_BREACHED"
+
+// ─── USER & AUTH ──────────────────────────────────────
 
 model User {
   id           String         @id @default(cuid())
   name         String
   email        String         @unique
   password     String
-  role         String         // e.g. "SUPER_ADMIN", "SALES_EXEC", etc.
+  role         String         // e.g. "SUPER_ADMIN", "MANAGER", etc.
+  isActive     Boolean        @default(true)
   teamLeaderId String?
   teamLead     User?          @relation("TeamMembers", fields: [teamLeaderId], references: [id])
   teamMembers  User[]         @relation("TeamMembers")
-  leads        Lead[]         @relation("AssignedLeads")
+  assignedLeads Lead[]         @relation("AssignedLeads")
   activities   LeadActivity[]
+  targetsSet   Target[]       @relation("TargetsSet")
+  targetsFor   Target[]       @relation("TargetsFor")
+  handoffs     Handoff[]
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 }
+
+// ─── LEADS ────────────────────────────────────────────
 
 model Lead {
   id           String         @id @default(cuid())
@@ -42,10 +53,11 @@ model Lead {
   phone        String         @unique
   email        String?        @unique
   source       String
+  company      String?
   stage        String         @default("NEW") // default NEW
+  notes        String?
   assignedToId String?
   assignedTo   User?          @relation("AssignedLeads", fields: [assignedToId], references: [id])
-  notes        String?
   activities   LeadActivity[]
   client       Client?
   createdAt    DateTime       @default(now())
@@ -60,9 +72,11 @@ model LeadActivity {
   user         User         @relation(fields: [userId], references: [id])
   type         String       // "STAGE_CHANGE", "NOTE", "CALL", "EMAIL", "WHATSAPP"
   description  String
-  callDuration Int?         // in seconds, for CALL type
+  callDuration Int?         // seconds — for CALL type
   createdAt    DateTime     @default(now())
 }
+
+// ─── CLIENTS ──────────────────────────────────────────
 
 model Client {
   id           String      @id @default(cuid())
@@ -72,73 +86,141 @@ model Client {
   contactName  String
   phone        String
   email        String
+  state        String?     // for GST type determination
   amcStartDate DateTime?
   amcEndDate   DateTime?
   invoices     Invoice[]
+  proposals    Proposal[]
   commitment   Commitment?
   handoff      Handoff?
   createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 }
+
+// ─── BILLING ──────────────────────────────────────────
 
 model Invoice {
-  id            String        @id @default(cuid())
-  invoiceNumber String        @unique
-  clientId      String
-  client        Client        @relation(fields: [clientId], references: [id])
-  amount        Float
-  gstType       String        // "CGST_SGST" or "IGST"
-  gstRate       Float
-  gstAmount     Float
-  totalAmount   Float
-  status        String        @default("DRAFT") // "DRAFT", "SENT", "PARTIALLY_PAID", "PAID", "OVERDUE"
-  payments      Payment[]
-  createdAt     DateTime      @default(now())
-  dueDate       DateTime?
+  id                String        @id @default(cuid())
+  invoiceNumber     String        @unique  // INV-2026-05-0001
+  clientId          String
+  client            Client        @relation(fields: [clientId], references: [id])
+  baseAmount        Float
+  gstRate           Float         // 3, 12, or 18
+  gstAmount         Float         // auto-calculated
+  totalAmount       Float         // baseAmount + gstAmount
+  paidAmount        Float         @default(0)
+  outstandingAmount Float         // totalAmount - paidAmount
+  status            String        @default("DRAFT") // "DRAFT", "PARTIALLY_PAID", "PAID", "OVERDUE"
+  slabs             PaymentSlab[]
+  dueDate           DateTime?
+  notes             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 }
 
-model Payment {
-  id         String   @id @default(cuid())
-  invoiceId  String
-  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
-  amount     Float
-  slabNumber Int      // 1, 2, 3 etc.
-  paidAt     DateTime @default(now())
-  notes      String?
+model PaymentSlab {
+  id            String    @id @default(cuid())
+  invoiceId     String
+  invoice       Invoice   @relation(fields: [invoiceId], references: [id])
+  slabNumber    Int       // 1, 2, 3 ...
+  percentage    Float     // e.g. 50.0
+  amount        Float     // auto = totalAmount x (percentage/100)
+  dueDate       DateTime?
+  isPaid        Boolean   @default(false)
+  paidAt        DateTime?
+  paymentNote   String?
+  createdAt     DateTime  @default(now())
 }
+
+// ─── PROPOSALS (PRICING BUILDER) ──────────────────────
+
+model Proposal {
+  id               String         @id @default(cuid())
+  proposalNumber   String         @unique  // PROP-2026-05-0001
+  clientId         String?
+  client           Client?        @relation(fields: [clientId], references: [id])
+  clientName       String         // for proposals without existing client
+  validityDays     Int            @default(15)
+  lineItems        ProposalItem[]
+  oneTimeTotal     Float          @default(0)
+  monthlyTotal     Float          @default(0)
+  consumptionTotal Float          @default(0)
+  subtotal         Float          @default(0)
+  gstRate          Float          // 3, 12, or 18
+  gstAmount        Float          @default(0)
+  grandTotal       Float          @default(0)
+  status           String         @default("DRAFT") // DRAFT, SENT, ACCEPTED, REJECTED
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model ProposalItem {
+  id          String   @id @default(cuid())
+  proposalId  String
+  proposal    Proposal @relation(fields: [proposalId], references: [id])
+  sortOrder   Int      @default(0)
+  component   String   // e.g. "AI Voice Agent (One-Time)"
+  description String?  // e.g. "Inbound call, Outbound call"
+  qty         Float    @default(1)
+  costPerUnit Float    // dynamic — CEO requirement
+  totalAmount Float    // auto = qty * costPerUnit
+  billingType String   // ONE_TIME | MONTHLY | CONSUMPTION
+  createdAt   DateTime @default(now())
+}
+
+// ─── SPLIT MAPPING ────────────────────────────────────
 
 model Commitment {
   id                String   @id @default(cuid())
   clientId          String   @unique
   client            Client   @relation(fields: [clientId], references: [id])
   agentCount        Int
-  talkTimeTarget    Int      // in minutes per day
-  revenueCommitment Float
+  talkTimeTarget    Int      // minutes per day
+  revenueCommitment Float    // INR
   windowStart       DateTime @default(now())
   windowEnd         DateTime // auto = windowStart + 60 days
-  actualTalkTime    Int      @default(0)
+  actualTalkTime    Int      @default(0) // from CALL activities
+  actualRevenue     Float    @default(0) // from paid invoices
   createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model Handoff {
-  id               String    @id @default(cuid())
-  clientId         String    @unique
-  client           Client    @relation(fields: [clientId], references: [id])
-  accountManagerId String
-  status           String    @default("PENDING") // "PENDING", "COMPLETED", "BREACHED"
-  handoffDate      DateTime?
-  meetingDone      Boolean   @default(false)
-  introMailSent    Boolean   @default(false)
-  onboardingDone   Boolean   @default(false)
-  activationDone   Boolean   @default(false)
-  slaBreached      Boolean   @default(false)
-  createdAt        DateTime  @default(now())
+  id                 String   @id @default(cuid())
+  clientId           String   @unique
+  client             Client   @relation(fields: [clientId], references: [id])
+  accountManagerId   String
+  accountManager     User     @relation(fields: [accountManagerId], references: [id])
+  status             String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, SLA_BREACHED
+  handoffDate        DateTime?
+  meetingDone        Boolean  @default(false)
+  introMailSent      Boolean  @default(false)
+  onboardingDone     Boolean  @default(false)
+  activationDone     Boolean  @default(false)
+  slaBreached        Boolean  @default(false)
+  slaDeadline        DateTime // handoffDate + 48 hours
+  onboardingDeadline DateTime // handoffDate + 5 days
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
-model GSTSlab {
-  id        String   @id @default(cuid())
-  label     String   // e.g. "GST 18%"
-  rate      Float    // e.g. 18.0
-  type      String   // "CGST_SGST" or "IGST"
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+// ─── TARGETS & INCENTIVES ─────────────────────────────
+
+model Target {
+  id             String   @id @default(cuid())
+  assignedToId   String   // Sales Exec
+  assignedTo     User     @relation("TargetsFor", fields: [assignedToId], references: [id])
+  assignedById   String   // Team Leader who set the target
+  assignedBy     User     @relation("TargetsSet", fields: [assignedById], references: [id])
+  month          String   // "2026-05" format
+  callTarget     Int      // number of calls
+  talkTimeTarget Int      // total minutes
+  revenueTarget  Float    // INR
+  leadTarget     Int      // number of conversions
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([assignedToId, month])
 }

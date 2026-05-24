@@ -97,7 +97,7 @@ const SplitMapping = () => {
           onClick={() => setActiveTab('handoffs')}
           className={`flex items-center space-x-2 px-6 py-3 text-sm font-semibold border-b-2 transition ${
             activeTab === 'handoffs'
-              ? 'border-accent text-accent'
+              ? 'border-accent-blue text-accent-blue'
               : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -108,7 +108,7 @@ const SplitMapping = () => {
           onClick={() => setActiveTab('attribution')}
           className={`flex items-center space-x-2 px-6 py-3 text-sm font-semibold border-b-2 transition ${
             activeTab === 'attribution'
-              ? 'border-accent text-accent'
+              ? 'border-accent-blue text-accent-blue'
               : 'border-transparent text-slate-500 hover:text-slate-700'
           }`}
         >
@@ -120,7 +120,7 @@ const SplitMapping = () => {
       {/* Content */}
       {loading ? (
         <div className="flex h-64 items-center justify-center rounded-xl bg-white border border-slate-100 shadow-sm">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent border-t-transparent"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent-blue border-t-transparent"></div>
         </div>
       ) : error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 p-6 text-center text-red-500">
@@ -179,7 +179,7 @@ const SplitMapping = () => {
                       </div>
                       <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-accent rounded-full transition-all duration-300"
+                          className="h-full bg-accent-blue rounded-full transition-all duration-300"
                           style={{ width: `${percent}%` }}
                         />
                       </div>
@@ -204,7 +204,7 @@ const SplitMapping = () => {
                             checked={handoff[item.key]}
                             disabled={!['SUPER_ADMIN', 'ACCOUNT_MANAGER'].includes(user.role)}
                             onChange={() => handleChecklistToggle(handoff.id, item.key, handoff[item.key])}
-                            className="h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent disabled:opacity-50"
+                            className="h-4 w-4 rounded border-slate-300 text-accent-blue focus:ring-accent-blue disabled:opacity-50"
                           />
                           <span>{item.label}</span>
                         </label>

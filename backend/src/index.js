@@ -10,6 +10,8 @@ import usersRouter from './routes/users.js';
 import billingRouter from './routes/billing.js';
 import splitRouter from './routes/splitMapping.js';
 import dashboardRouter from './routes/dashboard.js';
+import proposalsRouter from './routes/proposals.js';
+import targetsRouter from './routes/targets.js';
 
 dotenv.config();
 
@@ -27,6 +29,8 @@ app.use('/api/users', usersRouter);
 app.use('/api/billing', billingRouter);
 app.use('/api/split', splitRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/proposals', proposalsRouter);
+app.use('/api/targets', targetsRouter);
 
 // Health Check
 app.get('/api/health', (req, res) => {

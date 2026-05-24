@@ -59,7 +59,7 @@ router.get('/summary', verifyToken, async (req, res) => {
     // 3. Billing metrics
     const invoices = await prisma.invoice.findMany({
       where: invoiceWhere,
-      include: { payments: true }
+      include: { slabs: true }
     });
 
     let totalRevenue = 0;
@@ -68,7 +68,7 @@ router.get('/summary', verifyToken, async (req, res) => {
 
     invoices.forEach(inv => {
       totalRevenue += inv.totalAmount;
-      const paid = inv.payments.reduce((sum, p) => sum + p.amount, 0);
+      const paid = inv.slabs.filter(s => s.isPaid).reduce((sum, s) => sum + s.amount, 0);
       cashCollected += paid;
       if (inv.status !== 'PAID') {
         pendingInvoices += 1;

@@ -69,7 +69,7 @@ const Dashboard = () => {
   if (loading && !stats) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent border-t-transparent"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent-blue border-t-transparent"></div>
       </div>
     );
   }
@@ -125,7 +125,7 @@ const Dashboard = () => {
 
         {/* Metric 2 */}
         <div className="glass rounded-xl p-5 bg-white border border-slate-100 flex items-center space-x-4 shadow-sm">
-          <div className="rounded-lg bg-sky-50 p-3 text-accent">
+          <div className="rounded-lg bg-sky-50 p-3 text-accent-blue">
             <TrendingUp className="h-6 w-6" />
           </div>
           <div>
@@ -192,7 +192,7 @@ const Dashboard = () => {
           </div>
 
           <div className="flex items-center space-x-2 text-sky-400 border-b border-slate-800 pb-3">
-            <Sparkles className="h-5 w-5 text-accent animate-pulse" />
+            <Sparkles className="h-5 w-5 text-accent-blue animate-pulse" />
             <h3 className="text-sm font-bold uppercase tracking-wider">AI Copilot Intelligence</h3>
           </div>
 
@@ -200,14 +200,14 @@ const Dashboard = () => {
             {/* Insights */}
             <div className="space-y-3">
               <div className="p-3 bg-slate-800/60 rounded-lg border border-slate-700/50">
-                <span className="font-bold text-accent block mb-1">AI Lead Scoring</span>
+                <span className="font-bold text-accent-blue block mb-1">AI Lead Scoring</span>
                 <p className="text-[11px] text-slate-300">
                   <span className="font-semibold text-white">Globex Corp</span> has a <span className="text-green-400 font-bold">94%</span> conversion probability based on 180s call logging activity.
                 </p>
               </div>
 
               <div className="p-3 bg-slate-800/60 rounded-lg border border-slate-700/50">
-                <span className="font-bold text-accent block mb-1">AI Follow-up Prompt</span>
+                <span className="font-bold text-accent-blue block mb-1">AI Follow-up Prompt</span>
                 <p className="text-[11px] text-slate-300">
                   <span className="font-semibold text-white">Action Required:</span> Send pricing proposal to <span className="font-semibold text-white">Acme Corp</span>. Proposal stage has been active for 4 days.
                 </p>
@@ -282,7 +282,7 @@ const Dashboard = () => {
                       <span className="font-semibold text-slate-900">{act.user ? act.user.name : 'System'}</span>
                       {' '}{act.description}{' '}
                       for lead{' '}
-                      <Link to={`/leads/${act.leadId}`} className="font-bold text-accent hover:underline">
+                      <Link to={`/leads/${act.leadId}`} className="font-bold text-accent-blue hover:underline">
                         {act.lead?.name}
                       </Link>
                     </p>

@@ -12,10 +12,15 @@ import Dashboard from './pages/Dashboard';
 import Leads from './pages/Leads';
 import LeadDetail from './pages/LeadDetail';
 import Clients from './pages/Clients';
-import Billing from './pages/Billing';
 import SplitMapping from './pages/SplitMapping';
 import Reports from './pages/Reports';
 import SettingsPage from './pages/Settings';
+import ProposalList from './pages/Proposals/ProposalList';
+import ProposalBuilder from './pages/Proposals/ProposalBuilder';
+import TargetsDashboard from './pages/Targets/TargetsDashboard';
+import InvoiceList from './pages/Billing/InvoiceList';
+import CreateInvoice from './pages/Billing/CreateInvoice';
+import InvoiceDetail from './pages/Billing/InvoiceDetail';
 
 // Layout Wrapper
 const DashboardLayout = ({ title }) => {
@@ -58,7 +63,9 @@ function App() {
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'MANAGER', 'FINANCE']}><DashboardLayout title="Billing Ledger" /></ProtectedRoute>}>
-            <Route path="/billing" element={<Billing />} />
+            <Route path="/billing" element={<InvoiceList />} />
+            <Route path="/billing/new" element={<CreateInvoice />} />
+            <Route path="/billing/:id" element={<InvoiceDetail />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'MANAGER', 'ACCOUNT_MANAGER', 'SALES_EXEC']}><DashboardLayout title="Attribution splits" /></ProtectedRoute>}>
@@ -71,6 +78,16 @@ function App() {
 
           <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']}><DashboardLayout title="Admin Control Center" /></ProtectedRoute>}>
             <Route path="/settings" element={<SettingsPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'MANAGER', 'FINANCE', 'SALES_EXEC']}><DashboardLayout title="Proposals" /></ProtectedRoute>}>
+            <Route path="/proposals" element={<ProposalList />} />
+            <Route path="/proposals/new" element={<ProposalBuilder />} />
+            <Route path="/proposals/:id" element={<ProposalBuilder />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC']}><DashboardLayout title="Targets" /></ProtectedRoute>}>
+            <Route path="/targets" element={<TargetsDashboard />} />
           </Route>
 
           {/* Fallback Catch-all Redirect */}

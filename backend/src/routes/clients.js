@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 
 // @route   GET /api/clients
 // @desc    Get all active client accounts
-router.get('/', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'ACCOUNT_MANAGER', 'FINANCE'), async (req, res) => {
+router.get('/', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'ACCOUNT_MANAGER', 'FINANCE', 'SALES_EXEC'), async (req, res) => {
   try {
     const clients = await prisma.client.findMany({
       include: {

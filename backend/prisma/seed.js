@@ -5,397 +5,256 @@ import bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding database...');
+  console.log('Seeding database v2.0...');
 
   // Clean existing data in order of dependency
-  await prisma.payment.deleteMany();
-  await prisma.invoice.deleteMany();
-  await prisma.commitment.deleteMany();
+  await prisma.target.deleteMany();
   await prisma.handoff.deleteMany();
+  await prisma.commitment.deleteMany();
+  await prisma.proposalItem.deleteMany();
+  await prisma.proposal.deleteMany();
+  await prisma.paymentSlab.deleteMany();
+  await prisma.invoice.deleteMany();
   await prisma.client.deleteMany();
   await prisma.leadActivity.deleteMany();
   await prisma.lead.deleteMany();
-  await prisma.gSTSlab.deleteMany();
   await prisma.user.deleteMany();
 
-  // Hash password
   const passwordHash = await bcrypt.hash('Password123@', 10);
 
-  // 1. Seed Core Users (No team leaders first)
+  // 1. Seed Users
   const admin = await prisma.user.create({
-    data: {
-      name: 'Super Admin',
-      email: 'admin@thevertical.ai',
-      password: passwordHash,
-      role: 'SUPER_ADMIN',
-    },
+    data: { name: 'Super Admin', email: 'admin@thevertical.ai', password: passwordHash, role: 'SUPER_ADMIN' }
+  });
+
+  const manager = await prisma.user.create({
+    data: { name: 'Raj Manager', email: 'manager@thevertical.ai', password: passwordHash, role: 'MANAGER' }
   });
 
   const finance = await prisma.user.create({
-    data: {
-      name: 'Finance User',
-      email: 'finance@thevertical.ai',
-      password: passwordHash,
-      role: 'FINANCE',
-    },
+    data: { name: 'Finance User', email: 'finance@thevertical.ai', password: passwordHash, role: 'FINANCE' }
   });
 
   const am = await prisma.user.create({
-    data: {
-      name: 'AM User',
-      email: 'am@thevertical.ai',
-      password: passwordHash,
-      role: 'ACCOUNT_MANAGER',
-    },
+    data: { name: 'Deepa Nair', email: 'am@thevertical.ai', password: passwordHash, role: 'ACCOUNT_MANAGER' }
   });
 
-  // 2. Seed Team Leaders
   const arun = await prisma.user.create({
-    data: {
-      name: 'Arun',
-      email: 'arun@thevertical.ai',
-      password: passwordHash,
-      role: 'TEAM_LEADER',
-    },
+    data: { name: 'Arun Kumar', email: 'arun@thevertical.ai', password: passwordHash, role: 'TEAM_LEADER' }
   });
 
   const anand = await prisma.user.create({
-    data: {
-      name: 'Anand',
-      email: 'anand@thevertical.ai',
-      password: passwordHash,
-      role: 'TEAM_LEADER',
-    },
+    data: { name: 'Anand Rao', email: 'anand@thevertical.ai', password: passwordHash, role: 'TEAM_LEADER' }
   });
 
-  // 3. Seed Sales Executives linked to Team Leaders
   const ravi = await prisma.user.create({
-    data: {
-      name: 'Ravi',
-      email: 'ravi@thevertical.ai',
-      password: passwordHash,
-      role: 'SALES_EXEC',
-      teamLeaderId: arun.id,
-    },
+    data: { name: 'Ravi Sharma', email: 'ravi@thevertical.ai', password: passwordHash, role: 'SALES_EXEC', teamLeaderId: arun.id }
   });
 
   const sneha = await prisma.user.create({
-    data: {
-      name: 'Sneha',
-      email: 'sneha@thevertical.ai',
-      password: passwordHash,
-      role: 'SALES_EXEC',
-      teamLeaderId: arun.id,
-    },
+    data: { name: 'Sneha Patel', email: 'sneha@thevertical.ai', password: passwordHash, role: 'SALES_EXEC', teamLeaderId: arun.id }
   });
 
   const karan = await prisma.user.create({
-    data: {
-      name: 'Karan',
-      email: 'karan@thevertical.ai',
-      password: passwordHash,
-      role: 'SALES_EXEC',
-      teamLeaderId: anand.id,
-    },
+    data: { name: 'Karan Mehta', email: 'karan@thevertical.ai', password: passwordHash, role: 'SALES_EXEC', teamLeaderId: anand.id }
   });
 
   const priya = await prisma.user.create({
-    data: {
-      name: 'Priya',
-      email: 'priya@thevertical.ai',
-      password: passwordHash,
-      role: 'SALES_EXEC',
-      teamLeaderId: anand.id,
-    },
+    data: { name: 'Priya Singh', email: 'priya@thevertical.ai', password: passwordHash, role: 'SALES_EXEC', teamLeaderId: anand.id }
   });
 
-  console.log('Users seeded successfully!');
+  console.log('Seeded 10 Users.');
 
-  // 4. Seed GST Slabs
-  const slab5c = await prisma.gSTSlab.create({
-    data: { label: 'GST 5% (CGST+SGST)', rate: 5.0, type: 'CGST_SGST', isActive: true },
-  });
-  const slab5i = await prisma.gSTSlab.create({
-    data: { label: 'GST 5% (IGST)', rate: 5.0, type: 'IGST', isActive: true },
-  });
-  const slab12c = await prisma.gSTSlab.create({
-    data: { label: 'GST 12% (CGST+SGST)', rate: 12.0, type: 'CGST_SGST', isActive: true },
-  });
-  const slab12i = await prisma.gSTSlab.create({
-    data: { label: 'GST 12% (IGST)', rate: 12.0, type: 'IGST', isActive: true },
-  });
-  const slab18c = await prisma.gSTSlab.create({
-    data: { label: 'GST 18% (CGST+SGST)', rate: 18.0, type: 'CGST_SGST', isActive: true },
-  });
-  const slab18i = await prisma.gSTSlab.create({
-    data: { label: 'GST 18% (IGST)', rate: 18.0, type: 'IGST', isActive: true },
-  });
-
-  console.log('GST Slabs seeded successfully!');
-
-  // 5. Seed Leads (10 Leads)
+  // 2. Seed 10 Leads
   const lead1 = await prisma.lead.create({
-    data: {
-      name: 'John Doe',
-      phone: '9876543210',
-      email: 'john@example.com',
-      source: 'Website',
-      stage: 'NEW',
-      assignedToId: ravi.id,
-    },
+    data: { name: 'Rajesh Kumar', phone: '9876543210', email: 'rajesh@example.com', source: 'Website', stage: 'NEW', assignedToId: ravi.id }
   });
-
   const lead2 = await prisma.lead.create({
-    data: {
-      name: 'Jane Smith',
-      phone: '9876543211',
-      email: 'jane@example.com',
-      source: 'Cold Call',
-      stage: 'INTERESTED',
-      assignedToId: sneha.id,
-    },
+    data: { name: 'Meena Iyer', phone: '9876543211', email: 'meena@example.com', source: 'Referral', stage: 'INTERESTED', assignedToId: sneha.id }
   });
-
   const lead3 = await prisma.lead.create({
-    data: {
-      name: 'Acme Corp',
-      phone: '9876543212',
-      email: 'acme@example.com',
-      source: 'Referral',
-      stage: 'PROPOSAL_SHARED',
-      assignedToId: karan.id,
-    },
+    data: { name: 'Suresh Reddy', phone: '9876543212', email: 'suresh@example.com', source: 'LinkedIn', stage: 'PROPOSAL_SHARED', assignedToId: assignmentFilter(karan.id) }
   });
-
   const lead4 = await prisma.lead.create({
-    data: {
-      name: 'Globex Corp',
-      phone: '9876543213',
-      email: 'globex@example.com',
-      source: 'Inbound',
-      stage: 'PAYMENT_COMPLETED',
-      assignedToId: priya.id,
-    },
+    data: { name: 'Anjali Verma', phone: '9876543213', email: 'anjali@example.com', source: 'Cold Call', stage: 'PAYMENT_COMPLETED', assignedToId: priya.id }
   });
-
   const lead5 = await prisma.lead.create({
-    data: {
-      name: 'Initech Inc',
-      phone: '9876543214',
-      email: 'initech@example.com',
-      source: 'Website',
-      stage: 'PAYMENT_COMPLETED',
-      assignedToId: ravi.id,
-    },
+    data: { name: 'Vikram Nair', phone: '9876543214', email: 'vikram@example.com', source: 'Website', stage: 'RNR_DNP', assignedToId: sneha.id }
   });
-
   const lead6 = await prisma.lead.create({
-    data: {
-      name: 'Umbrella Corp',
-      phone: '9876543215',
-      email: 'umbrella@example.com',
-      source: 'Cold Call',
-      stage: 'RNR_DNP',
-      assignedToId: sneha.id,
-    },
+    data: { name: 'Pooja Sharma', phone: '9876543215', email: 'pooja@example.com', source: 'Referral', stage: 'INTERESTED', assignedToId: ravi.id }
   });
-
   const lead7 = await prisma.lead.create({
-    data: {
-      name: 'Hooli Inc',
-      phone: '9876543216',
-      email: 'hooli@example.com',
-      source: 'Website',
-      stage: 'NOT_INTERESTED',
-      assignedToId: karan.id,
-    },
+    data: { name: 'Amit Gupta', phone: '9876543216', email: 'amit@example.com', source: 'LinkedIn', stage: 'NOT_INTERESTED', assignedToId: assignmentFilter(karan.id) }
   });
-
   const lead8 = await prisma.lead.create({
-    data: {
-      name: 'Veer Industries',
-      phone: '9876543217',
-      email: 'veer@example.com',
-      source: 'Referral',
-      stage: 'NEW',
-      assignedToId: priya.id,
-    },
+    data: { name: 'Sunita Das', phone: '9876543217', email: 'sunita@example.com', source: 'Website', stage: 'NEW', assignedToId: priya.id }
   });
-
   const lead9 = await prisma.lead.create({
-    data: {
-      name: 'Sahu Retail',
-      phone: '9876543218',
-      email: 'sahu@example.com',
-      source: 'Inbound',
-      stage: 'INTERESTED',
-      assignedToId: ravi.id,
-    },
+    data: { name: 'Ravi Pillai', phone: '9876543218', email: 'ravipillai@example.com', source: 'Cold Call', stage: 'PROPOSAL_SHARED', assignedToId: ravi.id }
   });
-
   const lead10 = await prisma.lead.create({
-    data: {
-      name: 'Mittal Steel',
-      phone: '9876543219',
-      email: 'mittal@example.com',
-      source: 'Website',
-      stage: 'PROPOSAL_SHARED',
-      assignedToId: sneha.id,
-    },
+    data: { name: 'Kavya Menon', phone: '9876543219', email: 'kavya@example.com', source: 'Referral', stage: 'PAYMENT_COMPLETED', assignedToId: sneha.id }
   });
 
-  console.log('Leads seeded successfully!');
+  console.log('Seeded 10 Leads.');
 
-  // 6. Seed Activities for Leads
-  const now = new Date();
-  await prisma.leadActivity.createMany({
-    data: [
-      { leadId: lead1.id, userId: ravi.id, type: 'STAGE_CHANGE', description: 'Lead created in stage NEW', createdAt: new Date(now - 86400000 * 3) },
-      { leadId: lead2.id, userId: sneha.id, type: 'STAGE_CHANGE', description: 'Lead created in stage NEW', createdAt: new Date(now - 86400000 * 5) },
-      { leadId: lead2.id, userId: sneha.id, type: 'STAGE_CHANGE', description: 'Stage changed from NEW to INTERESTED', createdAt: new Date(now - 86400000 * 4) },
-      { leadId: lead2.id, userId: sneha.id, type: 'CALL', description: 'Follow-up call with customer about product specs', callDuration: 180, createdAt: new Date(now - 86400000 * 3) },
-      { leadId: lead3.id, userId: karan.id, type: 'NOTE', description: 'Interested in enterprise license of 50 users.', createdAt: new Date(now - 86400000 * 2) },
-      { leadId: lead3.id, userId: karan.id, type: 'STAGE_CHANGE', description: 'Stage changed to PROPOSAL_SHARED', createdAt: new Date(now - 86400000 * 1) },
-      { leadId: lead4.id, userId: priya.id, type: 'STAGE_CHANGE', description: 'Stage changed to PAYMENT_COMPLETED', createdAt: new Date(now - 86400000 * 2) },
-      { leadId: lead5.id, userId: ravi.id, type: 'STAGE_CHANGE', description: 'Stage changed to PAYMENT_COMPLETED', createdAt: new Date(now - 86400000 * 1) },
-    ],
-  });
+  // Helper for conditional assignments
+  function assignmentFilter(id) { return id; }
 
-  console.log('Activities seeded successfully!');
-
-  // 7. Seed Clients (linked to PAYMENT_COMPLETED leads: Globex Corp and Initech Inc)
+  // 3. Seed Client Accounts (from PAYMENT_COMPLETED leads: lead4, lead10)
   const client1 = await prisma.client.create({
     data: {
       leadId: lead4.id,
-      companyName: 'Globex Corp',
-      contactName: 'Alice Johnson',
+      companyName: 'StepsStone Promoters Pvt Ltd',
+      contactName: 'Anjali Verma',
       phone: lead4.phone,
-      email: lead4.email || 'globex@example.com',
+      email: lead4.email || 'anjali@example.com',
+      state: 'Tamil Nadu',
       amcStartDate: new Date(),
-      amcEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-    },
+      amcEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+    }
   });
 
   const client2 = await prisma.client.create({
     data: {
-      leadId: lead5.id,
-      companyName: 'Initech Inc',
-      contactName: 'Peter Gibbons',
-      phone: lead5.phone,
-      email: lead5.email || 'initech@example.com',
+      leadId: lead10.id,
+      companyName: 'Bright Future Edu Tech',
+      contactName: 'Kavya Menon',
+      phone: lead10.phone,
+      email: lead10.email || 'kavya@example.com',
+      state: 'Karnataka',
       amcStartDate: new Date(),
-      amcEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-    },
+      amcEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+    }
   });
 
-  console.log('Clients seeded successfully!');
+  console.log('Seeded 2 Clients.');
 
-  // 8. Seed Invoices and Payments
-  // Invoice for Client 1 (Globex)
-  const inv1 = await prisma.invoice.create({
+  // 4. Seed Invoice and payment slabs for client1 (StepsStone)
+  const invAmount = 140400;
+  const gstRate = 18;
+  const gstAmt = invAmount * (gstRate / 100);
+  const totalAmt = invAmount + gstAmt;
+
+  const invoice1 = await prisma.invoice.create({
     data: {
       invoiceNumber: 'INV-2026-05-0001',
       clientId: client1.id,
-      amount: 100000.0,
-      gstType: 'CGST_SGST',
-      gstRate: 18.0,
-      gstAmount: 18000.0,
-      totalAmount: 118000.0,
+      baseAmount: invAmount,
+      gstRate,
+      gstAmount: gstAmt,
+      totalAmount: totalAmt,
+      paidAmount: totalAmt * 0.5,
+      outstandingAmount: totalAmt * 0.5,
       status: 'PARTIALLY_PAID',
       dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-    },
+      notes: 'Initial deal billing'
+    }
   });
 
-  await prisma.payment.create({
+  await prisma.paymentSlab.create({
     data: {
-      invoiceId: inv1.id,
-      amount: 50000.0,
+      invoiceId: invoice1.id,
       slabNumber: 1,
-      notes: 'Initial payment milestone',
-    },
+      percentage: 50.0,
+      amount: totalAmt * 0.5,
+      isPaid: true,
+      paidAt: new Date(),
+      paymentNote: 'Upfront slab payment'
+    }
   });
 
-  // Invoice for Client 2 (Initech)
-  const inv2 = await prisma.invoice.create({
+  await prisma.paymentSlab.create({
     data: {
-      invoiceNumber: 'INV-2026-05-0002',
-      clientId: client2.id,
-      amount: 200000.0,
-      gstType: 'IGST',
-      gstRate: 18.0,
-      gstAmount: 36000.0,
-      totalAmount: 236000.0,
-      status: 'PAID',
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-    },
+      invoiceId: invoice1.id,
+      slabNumber: 2,
+      percentage: 50.0,
+      amount: totalAmt * 0.5,
+      isPaid: false,
+      dueDate: new Date(new Date().setDate(new Date().getDate() + 15)),
+      paymentNote: 'Post-onboarding slab'
+    }
   });
 
-  await prisma.payment.create({
-    data: {
-      invoiceId: inv2.id,
-      amount: 236000.0,
-      slabNumber: 1,
-      notes: 'Full payment received',
-    },
-  });
+  console.log('Seeded Invoice & Slabs.');
 
-  console.log('Invoices and Payments seeded successfully!');
-
-  // 9. Seed Split Mapping: Handoffs and Commitments
-  // Client 1 (Globex): Pending Handoff and active Commitment
-  await prisma.handoff.create({
+  // 5. Seed Proposal for StepsStone
+  const proposal = await prisma.proposal.create({
     data: {
+      proposalNumber: 'PROP-2026-05-0001',
       clientId: client1.id,
-      accountManagerId: am.id,
-      status: 'PENDING',
-      introMailSent: true,
-      meetingDone: false,
-      onboardingDone: false,
-      activationDone: false,
-      slaBreached: false,
-    },
+      clientName: 'StepsStone Promoters Pvt Ltd',
+      validityDays: 15,
+      oneTimeTotal: 91000.0,
+      monthlyTotal: 4400.0,
+      consumptionTotal: 45000.0,
+      subtotal: invAmount,
+      gstRate,
+      gstAmount: gstAmt,
+      grandTotal: totalAmt,
+      status: 'ACCEPTED',
+      notes: 'Standard enterprise package'
+    }
   });
 
+  await prisma.proposalItem.createMany({
+    data: [
+      { proposalId: proposal.id, sortOrder: 1, component: 'AI Voice Agent (One-Time)', description: 'Core Voice Engine setup', qty: 2, costPerUnit: 45000, totalAmount: 90000, billingType: 'ONE_TIME' },
+      { proposalId: proposal.id, sortOrder: 2, component: 'Additional Agent (One-Time)', description: 'Extra voice agent keys', qty: 0, costPerUnit: 25000, totalAmount: 0, billingType: 'ONE_TIME' },
+      { proposalId: proposal.id, sortOrder: 3, component: 'Per Concurrent Channel/Month', description: 'Concurrent trunks', qty: 4, costPerUnit: 1100, totalAmount: 4400, billingType: 'MONTHLY' },
+      { proposalId: proposal.id, sortOrder: 4, component: 'SIM Cost (One-Time)', description: 'Sim integration fee', qty: 2, costPerUnit: 500, totalAmount: 1000, billingType: 'ONE_TIME' },
+      { proposalId: proposal.id, sortOrder: 5, component: 'Minute Consumption', description: 'Pre-paid talk-time package', qty: 15000, costPerUnit: 3, totalAmount: 45000, billingType: 'CONSUMPTION' }
+    ]
+  });
+
+  console.log('Seeded Proposal.');
+
+  // 6. Seed Commitment & Handoff
+  const now = new Date();
   await prisma.commitment.create({
     data: {
       clientId: client1.id,
       agentCount: 5,
-      talkTimeTarget: 120, // 120 minutes/day
-      revenueCommitment: 100000.0,
-      windowStart: new Date(),
-      windowEnd: new Date(new Date().setDate(new Date().getDate() + 60)),
-      actualTalkTime: 0,
-    },
+      talkTimeTarget: 120, // mins per day
+      revenueCommitment: 200000.0,
+      windowStart: now,
+      windowEnd: new Date(new Date().setDate(now.getDate() + 60)),
+      actualTalkTime: 180,
+      actualRevenue: totalAmt * 0.5
+    }
   });
 
-  // Client 2 (Initech): Completed Handoff and active Commitment
   await prisma.handoff.create({
     data: {
-      clientId: client2.id,
+      clientId: client1.id,
       accountManagerId: am.id,
-      status: 'COMPLETED',
-      handoffDate: new Date(),
-      introMailSent: true,
+      status: 'IN_PROGRESS',
       meetingDone: true,
-      onboardingDone: true,
-      activationDone: true,
-      slaBreached: false,
-    },
+      introMailSent: true,
+      onboardingDone: false,
+      activationDone: false,
+      slaDeadline: new Date(new Date().setDate(now.getDate() + 2)), // 48h
+      onboardingDeadline: new Date(new Date().setDate(now.getDate() + 5)) // 5d
+    }
   });
 
-  await prisma.commitment.create({
+  console.log('Seeded Commitments & Handoffs.');
+
+  // 7. Seed Targets
+  await prisma.target.create({
     data: {
-      clientId: client2.id,
-      agentCount: 10,
-      talkTimeTarget: 240, // 240 minutes/day
-      revenueCommitment: 200000.0,
-      windowStart: new Date(new Date().setDate(new Date().getDate() - 10)),
-      windowEnd: new Date(new Date().setDate(new Date().getDate() + 50)),
-      actualTalkTime: 1250, // minutes
-    },
+      assignedToId: ravi.id,
+      assignedById: arun.id,
+      month: '2026-05',
+      callTarget: 50,
+      talkTimeTarget: 600, // mins
+      revenueTarget: 200000.0,
+      leadTarget: 8
+    }
   });
 
-  console.log('Split Mapping seeded successfully!');
+  console.log('Seeded Targets.');
   console.log('Database seeding complete!');
 }
 

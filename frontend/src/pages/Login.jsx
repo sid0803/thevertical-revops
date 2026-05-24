@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, Server, ShieldCheck, UserCheck, CreditCard, Users, Briefcase } from 'lucide-react';
+import { Lock, Mail, Server, ShieldCheck, UserCheck, CreditCard, Users, Briefcase, Zap, ShieldAlert } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -43,98 +43,97 @@ const Login = () => {
   };
 
   const demoAccounts = [
-    { name: 'Super Admin', email: 'admin@thevertical.ai', role: 'Super Admin', icon: ShieldCheck, color: 'border-red-500/30 text-red-400 bg-red-500/5' },
-    { name: 'TL Arun', email: 'arun@thevertical.ai', role: 'Team Leader', icon: Users, color: 'border-amber-500/30 text-amber-400 bg-amber-500/5' },
-    { name: 'Sales Ravi', email: 'ravi@thevertical.ai', role: 'Sales Exec', icon: Briefcase, color: 'border-sky-500/30 text-sky-400 bg-sky-500/5' },
-    { name: 'Finance User', email: 'finance@thevertical.ai', role: 'Finance', icon: CreditCard, color: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/5' },
-    { name: 'AM User', email: 'am@thevertical.ai', role: 'Account Mgr', icon: UserCheck, color: 'border-indigo-500/30 text-indigo-400 bg-indigo-500/5' },
+    { name: 'Super Admin', email: 'admin@thevertical.ai', role: 'Admin', icon: ShieldCheck, color: 'border-red-500/20 text-red-400 bg-red-500/5' },
+    { name: 'Arun Kumar', email: 'arun@thevertical.ai', role: 'Team Lead', icon: Users, color: 'border-amber-500/20 text-amber-400 bg-amber-500/5' },
+    { name: 'Ravi Sharma', email: 'ravi@thevertical.ai', role: 'Sales Exec', icon: Briefcase, color: 'border-blue-500/20 text-blue-400 bg-blue-500/5' },
+    { name: 'Deepa Nair', email: 'am@thevertical.ai', role: 'Account AM', icon: UserCheck, color: 'border-indigo-500/20 text-indigo-400 bg-indigo-500/5' },
+    { name: 'Finance User', email: 'finance@thevertical.ai', role: 'Finance', icon: CreditCard, color: 'border-emerald-500/20 text-emerald-400 bg-emerald-500/5' },
+    { name: 'Raj Manager', email: 'manager@thevertical.ai', role: 'Manager', icon: ShieldAlert, color: 'border-purple-500/20 text-purple-400 bg-purple-500/5' },
   ];
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-primary-dark">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-primary-dark font-sans">
       {/* Decorative Blur Orbs */}
-      <div className="absolute -left-20 -top-20 h-96 w-96 rounded-full bg-accent/20 blur-[100px]" />
-      <div className="absolute -bottom-20 -right-20 h-96 w-96 rounded-full bg-emerald-500/10 blur-[100px]" />
+      <div className="absolute -left-20 -top-20 h-96 w-96 rounded-full bg-accent-blue/20 blur-[120px]" />
+      <div className="absolute -bottom-20 -right-20 h-96 w-96 rounded-full bg-accent-cyan/10 blur-[120px]" />
 
-      <div className="w-full max-w-5xl px-4 py-8 md:grid md:grid-cols-2 md:gap-8">
+      <div className="w-full max-w-5xl px-4 py-8 md:grid md:grid-cols-2 md:gap-12 items-center">
         
         {/* Left Side: Brand Panel */}
-        <div className="mb-8 flex flex-col justify-center text-center md:mb-0 md:text-left">
+        <div className="mb-10 flex flex-col justify-center text-center md:mb-0 md:text-left">
           <div className="mb-6 flex items-center justify-center md:justify-start space-x-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-white shadow-lg shadow-accent/40 font-bold text-xl">
-              V
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-white">
-              TheVertical<span className="text-accent">.ai</span>
+            <Zap className="h-8 w-8 text-accent-blue fill-accent-blue" />
+            <span className="text-2xl font-bold tracking-wider text-white uppercase">
+              The Vertical <span className="text-accent-cyan">AI</span>
             </span>
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl leading-none">
             Revenue Operating System
           </h1>
-          <p className="mt-4 text-base text-slate-400 max-w-md mx-auto md:mx-0">
-            Automating the Lead → Client → Billing → Onboarding lifecycle with precision attribution mapping and intelligence.
+          <p className="mt-4 text-sm text-slate-400 max-w-sm mx-auto md:mx-0">
+            Automating the Lead → Client → Billing → Onboarding lifecycle with precision attribution mapping and AI revenue intelligence.
           </p>
           <div className="mt-8 hidden space-y-4 md:block">
-            <div className="flex items-center space-x-3 text-slate-300 text-sm">
-              <Server className="h-5 w-5 text-accent" />
+            <div className="flex items-center space-x-3 text-slate-300 text-xs uppercase tracking-wider font-semibold">
+              <Server className="h-4.5 w-4.5 text-accent-cyan" />
               <span>Full Role-Based Access Control (RBAC)</span>
             </div>
-            <div className="flex items-center space-x-3 text-slate-300 text-sm">
-              <ShieldCheck className="h-5 w-5 text-accent" />
-              <span>Automated Billing & GST Calculation</span>
+            <div className="flex items-center space-x-3 text-slate-300 text-xs uppercase tracking-wider font-semibold">
+              <ShieldCheck className="h-4.5 w-4.5 text-accent-cyan" />
+              <span>Automated Billing & Slabs Booking</span>
             </div>
-            <div className="flex items-center space-x-3 text-slate-300 text-sm">
-              <UserCheck className="h-5 w-5 text-accent" />
-              <span>Split-Mapping Hand-offs & Expansion Tracking</span>
+            <div className="flex items-center space-x-3 text-slate-300 text-xs uppercase tracking-wider font-semibold">
+              <UserCheck className="h-4.5 w-4.5 text-accent-cyan" />
+              <span>Split-Mapping Hand-offs & Target Trackers</span>
             </div>
           </div>
         </div>
 
         {/* Right Side: Login Card */}
-        <div className="glass-dark rounded-2xl p-8 shadow-2xl relative">
-          <h2 className="text-2xl font-bold text-white text-center mb-2">Welcome Back</h2>
-          <p className="text-slate-400 text-sm text-center mb-6">Sign in to your RevOps dashboard</p>
+        <div className="bg-white rounded-xl p-8 shadow-2xl relative border border-slate-100">
+          <h2 className="text-xl font-bold text-slate-900 text-center mb-1">Welcome Back</h2>
+          <p className="text-slate-500 text-xs text-center mb-6">Sign in to your RevOps dashboard</p>
           
           {error && (
-            <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-400">
+            <div className="mb-4 rounded bg-red-50 border border-red-200 p-3 text-xs text-red-600 font-medium">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                 Email Address
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                  <Mail className="h-5 w-5" />
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                  <Mail className="h-4 w-4" />
                 </span>
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-900/50 py-3 pl-10 pr-4 text-white placeholder-slate-500 outline-none transition focus:border-accent focus:bg-slate-900"
+                  className="w-full rounded border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 outline-none transition focus:border-accent-blue focus:bg-white"
                   placeholder="name@thevertical.ai"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                 Password
               </label>
               <div className="relative">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
-                  <Lock className="h-5 w-5" />
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                  <Lock className="h-4 w-4" />
                 </span>
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-900/50 py-3 pl-10 pr-4 text-white placeholder-slate-500 outline-none transition focus:border-accent focus:bg-slate-900"
+                  className="w-full rounded border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-xs text-slate-800 placeholder-slate-400 outline-none transition focus:border-accent-blue focus:bg-white"
                   placeholder="••••••••"
                 />
               </div>
@@ -143,15 +142,15 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-accent py-3 font-semibold text-white transition hover:bg-accent-dark disabled:opacity-50"
+              className="w-full rounded bg-accent-blue py-2.5 text-xs font-bold uppercase tracking-wider text-white transition hover:bg-blue-700 disabled:opacity-50 shadow-md shadow-blue-500/10 active:scale-98"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
           {/* Quick Login Grid */}
-          <div className="mt-8 border-t border-slate-800 pt-6">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4 text-center">
+          <div className="mt-8 border-t border-slate-100 pt-5">
+            <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3 text-center">
               Quick Login Demo Profiles
             </h3>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -162,13 +161,13 @@ const Login = () => {
                     key={account.email}
                     onClick={() => handleQuickLogin(account.email, 'Password123@')}
                     disabled={loading}
-                    className={`flex flex-col items-center justify-center p-3 rounded-lg border text-center transition hover:scale-105 active:scale-95 ${account.color}`}
+                    className={`flex flex-col items-center justify-center p-2 rounded border text-center transition hover:scale-103 active:scale-97 ${account.color}`}
                   >
-                    <IconComponent className="h-5 w-5 mb-1" />
-                    <span className="text-xs font-medium block truncate max-w-full text-white">
-                      {account.name}
+                    <IconComponent className="h-4 w-4 mb-0.5" />
+                    <span className="text-[10px] font-bold block truncate max-w-full text-slate-800">
+                      {account.name.split(' ')[0]}
                     </span>
-                    <span className="text-[10px] opacity-80 block truncate max-w-full">
+                    <span className="text-[8px] uppercase tracking-wider block opacity-75 font-semibold">
                       {account.role}
                     </span>
                   </button>
