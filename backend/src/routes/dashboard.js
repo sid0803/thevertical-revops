@@ -143,6 +143,126 @@ router.get('/summary', verifyToken, async (req, res) => {
       }
     });
 
+    // 7. Dynamic AI Insights compiled from active DB state
+    const allLeads = await prisma.lead.findMany({
+      include: {
+        activities: true,
+        client: { include: { commitment: true } }
+      }
+    });
+
+    const aiInsights = [];
+
+    // Insight 1: Lead Scoring (based on talk-time duration)
+    const activeLeadsWithCalls = allLeads
+      .filter(l => l.stage !== 'PAYMENT_COMPLETED' && l.stage !== 'NOT_INTERESTED')
+      .map(l => {
+        const totalDuration = l.activities
+          .filter(a => a.type === 'CALL')
+          .reduce((sum, a) => sum + (a.callDuration || 0), 0);
+        return { lead: l, totalDuration };
+      })
+      .filter(x => x.totalDuration > 0)
+      .sort((a, b) => b.totalDuration - a.totalDuration);
+
+    if (activeLeadsWithCalls.length > 0) {
+      const topLead = activeLeadsWithCalls[0];
+      const probability = Math.min(97, 45 + Math.round(topLead.totalDuration / 12));
+      const mins = Math.round(topLead.totalDuration / 60);
+      aiInsights.push({
+        type: 'lead_score',
+        title: 'AI Lead Scoring',
+        color: 'text-sky-400',
+        content: `${topLead.lead.name} has a ${probability}% conversion probability based on ${mins} mins of logged call activity.`
+      });
+    } else {
+      aiInsights.push({
+        type: 'lead_score',
+        title: 'AI Lead Scoring',
+        color: 'text-sky-400',
+        content: 'Qualify more leads with call interactions to unlock predictive scoring models.'
+      });
+    }
+
+    // Insight 2: Follow-up prompts (leads stuck in PROPOSAL_SHARED)
+    const proposalLeads = allLeads.filter(l => l.stage === 'PROPOSAL_SHARED');
+    if (proposalLeads.length > 0) {
+      const oldestProposal = proposalLeads.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt))[0];
+      const days = Math.max(1, Math.round((new Date() - new Date(oldestProposal.updatedAt)) / (1000 * 60 * 60 * 24)));
+      aiInsights.push({
+        type: 'follow_up',
+        title: 'AI Follow-up Prompt',
+        color: 'text-accent-blue',
+        content: `Lead ${oldestProposal.name} has been stuck in PROPOSAL_SHARED stage for ${days} days. Action Required: follow up on outstanding proposal.`
+      });
+    } else {
+      aiInsights.push({
+        type: 'follow_up',
+        title: 'AI Follow-up Prompt',
+        color: 'text-accent-blue',
+        content: 'No leads currently stuck in proposal stage. Keep pushing active opportunities.'
+      });
+    }
+
+    // Insight 3: Deal Risk Alert (Leads stuck in NEW or INTERESTED with no activities)
+    const stuckLeads = allLeads.filter(l => 
+      ['NEW', 'INTERESTED'].includes(l.stage) &&
+      (l.activities.length === 0 || (new Date() - new Date(l.updatedAt)) / (1000 * 60 * 60 * 24) > 3)
+    );
+
+    if (stuckLeads.length > 0) {
+      const topStuck = stuckLeads[0];
+      const days = Math.max(1, Math.round((new Date() - new Date(topStuck.updatedAt)) / (1000 * 60 * 60 * 24)));
+      aiInsights.push({
+        type: 'risk_alert',
+        title: 'AI Deal Risk Alert',
+        color: 'text-red-400',
+        content: `${topStuck.name} is flagged as STUCK. Lead has been inactive for ${days} days with no recent updates.`
+      });
+    } else {
+      aiInsights.push({
+        type: 'risk_alert',
+        title: 'AI Deal Risk Alert',
+        color: 'text-red-400',
+        content: 'Risk index is optimal. All active pipelines are moving sequentially.'
+      });
+    }
+
+    // Insight 4: Expansion Predictor (based on commitments of active clients)
+    const clientsWithCommitments = allLeads
+      .filter(l => l.client?.commitment)
+      .map(l => l.client);
+
+    if (clientsWithCommitments.length > 0) {
+      const client = clientsWithCommitments[0];
+      const commitment = client.commitment;
+      const outstandingVal = commitment.revenueCommitment - commitment.actualRevenue;
+      const days = Math.max(0, Math.round((new Date(commitment.windowEnd) - new Date()) / (1000 * 60 * 60 * 24)));
+      
+      if (outstandingVal > 0) {
+        aiInsights.push({
+          type: 'expansion',
+          title: 'AI Expansion Predictor',
+          color: 'text-green-400',
+          content: `${client.companyName} has an outstanding ₹${outstandingVal.toLocaleString('en-IN')} target under 60-day SLA window. ${days} days remaining to close.`
+        });
+      } else {
+        aiInsights.push({
+          type: 'expansion',
+          title: 'AI Expansion Predictor',
+          color: 'text-green-400',
+          content: `Revenue targets fully achieved for ${client.companyName} within active SLA window.`
+        });
+      }
+    } else {
+      aiInsights.push({
+        type: 'expansion',
+        title: 'AI Expansion Predictor',
+        color: 'text-green-400',
+        content: 'No active SLA commitments found. Convert payments to begin tracking expansion attribution.'
+      });
+    }
+
     return res.json({
       totalLeads,
       leadsByStage,
@@ -152,7 +272,8 @@ router.get('/summary', verifyToken, async (req, res) => {
       pendingInvoices,
       overdueHandoffs,
       teamPerformance,
-      recentActivities
+      recentActivities,
+      aiInsights
     });
 
   } catch (error) {

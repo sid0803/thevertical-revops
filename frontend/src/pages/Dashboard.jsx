@@ -15,7 +15,8 @@ import {
   Sparkles,
   ArrowRight,
   TrendingDown,
-  BrainCircuit
+  BrainCircuit,
+  IndianRupee
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -199,33 +200,18 @@ const Dashboard = () => {
           <div className="space-y-4 text-xs">
             {/* Insights */}
             <div className="space-y-3">
-              <div className="p-3 bg-slate-800/60 rounded-lg border border-slate-700/50">
-                <span className="font-bold text-accent-blue block mb-1">AI Lead Scoring</span>
-                <p className="text-[11px] text-slate-300">
-                  <span className="font-semibold text-white">Globex Corp</span> has a <span className="text-green-400 font-bold">94%</span> conversion probability based on 180s call logging activity.
-                </p>
-              </div>
-
-              <div className="p-3 bg-slate-800/60 rounded-lg border border-slate-700/50">
-                <span className="font-bold text-accent-blue block mb-1">AI Follow-up Prompt</span>
-                <p className="text-[11px] text-slate-300">
-                  <span className="font-semibold text-white">Action Required:</span> Send pricing proposal to <span className="font-semibold text-white">Acme Corp</span>. Proposal stage has been active for 4 days.
-                </p>
-              </div>
-
-              <div className="p-3 bg-slate-800/60 rounded-lg border border-slate-700/50">
-                <span className="font-bold text-red-400 block mb-1">AI Deal Risk Alert</span>
-                <p className="text-[11px] text-slate-300">
-                  <span className="font-semibold text-white">Umbrella Corp</span> is flagged as <span className="text-red-400 font-bold">STUCK</span>. Lead created 5 days ago with no call interactions.
-                </p>
-              </div>
-
-              <div className="p-3 bg-slate-800/60 rounded-lg border border-slate-700/50">
-                <span className="font-bold text-green-400 block mb-1">AI Expansion Predictor</span>
-                <p className="text-[11px] text-slate-300">
-                  Predicted month-end expansion revenue: <span className="text-white font-bold">₹1,45,000</span> (Confidence: 89%). Upsell window is optimal for Initech Inc.
-                </p>
-              </div>
+              {stats.aiInsights && stats.aiInsights.length > 0 ? (
+                stats.aiInsights.map((insight, idx) => (
+                  <div key={idx} className="p-3 bg-slate-800/60 rounded-lg border border-slate-700/50">
+                    <span className={`font-bold block mb-1 ${insight.color || 'text-sky-400'}`}>{insight.title}</span>
+                    <p className="text-[11px] text-slate-300">
+                      {insight.content}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-slate-500 py-6">No insights available at this time.</p>
+              )}
             </div>
           </div>
         </div>
