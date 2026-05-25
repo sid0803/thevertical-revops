@@ -77,6 +77,9 @@ router.get('/', verifyToken, async (req, res) => {
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
+    if (id === 'new' || id.length < 10) {
+      return res.status(400).json({ message: 'Invalid proposal ID format' });
+    }
     const proposal = await prisma.proposal.findUnique({
       where: { id },
       include: {
@@ -195,6 +198,9 @@ router.post('/', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM_LEADE
 router.put('/:id', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
   try {
     const { id } = req.params;
+    if (id === 'new' || id.length < 10) {
+      return res.status(400).json({ message: 'Invalid proposal ID format' });
+    }
     const { clientId, clientName, validityDays, gstRate, notes, status, lineItems } = req.body;
 
     const existingProposal = await prisma.proposal.findUnique({
@@ -291,6 +297,9 @@ router.put('/:id', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM_LEA
 router.post('/:id/send', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
+    if (id === 'new' || id.length < 10) {
+      return res.status(400).json({ message: 'Invalid proposal ID format' });
+    }
     const proposal = await prisma.proposal.findUnique({ where: { id } });
 
     if (!proposal) {
@@ -314,6 +323,9 @@ router.post('/:id/send', verifyToken, async (req, res) => {
 router.post('/:id/convert', verifyToken, requireRoles('SUPER_ADMIN', 'FINANCE', 'MANAGER'), async (req, res) => {
   try {
     const { id } = req.params;
+    if (id === 'new' || id.length < 10) {
+      return res.status(400).json({ message: 'Invalid proposal ID format' });
+    }
     const proposal = await prisma.proposal.findUnique({
       where: { id },
       include: { client: true }

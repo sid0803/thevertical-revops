@@ -169,7 +169,7 @@ The codebase includes a fully scripted automated integration test script. You ca
 
 ```bash
 # From the project root
-node .gemini/antigravity/scratch/test_api.js
+node backend/scripts/test_api.js
 ```
 The test suite validates:
 1. Role authentication and RBAC blocks (e.g., verifying Sales Reps are blocked from billing actions).
