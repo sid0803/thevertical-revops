@@ -95,7 +95,7 @@ router.get('/summary', verifyToken, async (req, res) => {
         id: true,
         name: true,
         role: true,
-        leads: {
+        assignedLeads: {
           select: {
             stage: true,
             client: {
@@ -109,7 +109,7 @@ router.get('/summary', verifyToken, async (req, res) => {
     });
 
     const teamPerformance = salesUsers.map(user => {
-      const userLeads = user.leads;
+      const userLeads = user.assignedLeads;
       const total = userLeads.length;
       const converted = userLeads.filter(l => l.stage === 'PAYMENT_COMPLETED').length;
       
