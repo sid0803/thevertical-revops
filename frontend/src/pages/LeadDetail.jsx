@@ -349,7 +349,11 @@ const LeadDetail = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="opacity-80">AMC Ends:</span>
-                  <span className="font-semibold">{new Date(lead.client.amcEndDate).toLocaleDateString('en-IN')}</span>
+                  <span className="font-semibold">
+                    {lead.client.amcEndDate
+                      ? new Date(lead.client.amcEndDate).toLocaleDateString('en-IN')
+                      : 'N/A'}
+                  </span>
                 </div>
               </div>
               <Link

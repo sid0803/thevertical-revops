@@ -55,7 +55,12 @@ router.get('/', verifyToken, async (req, res) => {
       whereClause.stage = stage;
     }
     if (assignedToId) {
-      whereClause.assignedToId = assignedToId;
+      // SECURITY: SALES_EXEC can only filter by their own ID, prevent IDOR
+      if (req.user.role === 'SALES_EXEC') {
+        whereClause.assignedToId = req.user.id;
+      } else {
+        whereClause.assignedToId = assignedToId;
+      }
     }
     if (from || to) {
       whereClause.createdAt = {};

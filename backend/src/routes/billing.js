@@ -408,11 +408,16 @@ router.delete('/invoices/:id/slabs/:slabId', verifyToken, requireRoles('SUPER_AD
     const { id, slabId } = req.params;
 
     const slab = await prisma.paymentSlab.findUnique({
-      where: { id }
+      where: { id: slabId }
     });
 
     if (!slab) {
       return res.status(404).json({ message: 'Slab not found' });
+    }
+
+    // Verify this slab actually belongs to the given invoice
+    if (slab.invoiceId !== id) {
+      return res.status(403).json({ message: 'Slab does not belong to this invoice' });
     }
 
     if (slab.isPaid) {
@@ -420,7 +425,7 @@ router.delete('/invoices/:id/slabs/:slabId', verifyToken, requireRoles('SUPER_AD
     }
 
     await prisma.paymentSlab.delete({
-      where: { id }
+      where: { id: slabId }
     });
 
     const updated = await syncInvoiceTotals(id);

@@ -82,10 +82,10 @@ const TargetsDashboard = () => {
   const startEditing = (item) => {
     setEditingTargetId(item.rep.id);
     setEditValues({
-      callTarget: item.target.callTarget || 0,
-      talkTimeTarget: item.target.talkTimeTarget || 0,
-      revenueTarget: item.target.revenueTarget || 0,
-      leadTarget: item.target.leadTarget || 0
+      callTarget: item.target?.callTarget || 0,
+      talkTimeTarget: item.target?.talkTimeTarget || 0,
+      revenueTarget: item.target?.revenueTarget || 0,
+      leadTarget: item.target?.leadTarget || 0
     });
   };
 
@@ -333,10 +333,10 @@ const TargetsDashboard = () => {
                     {teamProgress.map((item) => {
                       const isEditing = editingTargetId === item.rep.id;
 
-                      const callsPct = formatPercentage(item.actual.calls, item.target.callTarget);
-                      const timePct = formatPercentage(item.actual.talkTime, item.target.talkTimeTarget);
-                      const leadsPct = formatPercentage(item.actual.leads, item.target.leadTarget);
-                      const revPct = formatPercentage(item.actual.revenue, item.target.revenueTarget);
+                      const callsPct = formatPercentage(item.actual.calls, item.target?.callTarget);
+                      const timePct = formatPercentage(item.actual.talkTime, item.target?.talkTimeTarget);
+                      const leadsPct = formatPercentage(item.actual.leads, item.target?.leadTarget);
+                      const revPct = formatPercentage(item.actual.revenue, item.target?.revenueTarget);
 
                       return (
                         <tr key={item.rep.id} className="hover:bg-slate-55/35 transition-colors">
@@ -365,7 +365,7 @@ const TargetsDashboard = () => {
                             ) : (
                               <div>
                                 <span className="font-bold text-slate-800">{item.actual.calls}</span>
-                                <span className="text-slate-400"> / {item.target.callTarget || 0}</span>
+                                <span className="text-slate-400"> / {item.target?.callTarget || 0}</span>
                                 <div className="w-24 bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
                                   <div className="bg-sky-500 h-full rounded-full" style={{ width: `${Math.min(callsPct, 100)}%` }} />
                                 </div>
@@ -385,7 +385,7 @@ const TargetsDashboard = () => {
                             ) : (
                               <div>
                                 <span className="font-bold text-slate-800">{item.actual.talkTime}m</span>
-                                <span className="text-slate-400 font-semibold"> / {item.target.talkTimeTarget || 0}m</span>
+                                <span className="text-slate-400 font-semibold"> / {item.target?.talkTimeTarget || 0}m</span>
                                 <div className="w-24 bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
                                   <div className="bg-amber-500 h-full rounded-full" style={{ width: `${Math.min(timePct, 100)}%` }} />
                                 </div>
@@ -405,7 +405,7 @@ const TargetsDashboard = () => {
                             ) : (
                               <div>
                                 <span className="font-bold text-slate-800">{item.actual.leads}</span>
-                                <span className="text-slate-400"> / {item.target.leadTarget || 0}</span>
+                                <span className="text-slate-400"> / {item.target?.leadTarget || 0}</span>
                                 <div className="w-24 bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
                                   <div className="bg-purple-500 h-full rounded-full" style={{ width: `${Math.min(leadsPct, 100)}%` }} />
                                 </div>
@@ -425,7 +425,7 @@ const TargetsDashboard = () => {
                             ) : (
                               <div>
                                 <span className="font-bold text-slate-800">₹{item.actual.revenue.toLocaleString('en-IN')}</span>
-                                <span className="text-slate-400"> / ₹{(item.target.revenueTarget || 0).toLocaleString('en-IN')}</span>
+                                <span className="text-slate-400"> / ₹{(item.target?.revenueTarget || 0).toLocaleString('en-IN')}</span>
                                 <div className="w-32 bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
                                   <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.min(revPct, 100)}%` }} />
                                 </div>

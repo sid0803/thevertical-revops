@@ -380,7 +380,9 @@ const InvoiceDetail = () => {
                             {['SUPER_ADMIN', 'FINANCE'].includes(user.role) && (
                               <button
                                 onClick={() => handleMarkAsPaid(slab.id, slab.slabNumber)}
-                                className="rounded bg-success text-white font-bold px-2 py-1 text-[10px] uppercase tracking-wider hover:bg-emerald-600 transition active:scale-95"
+                                disabled={!slab.id}
+                                title={!slab.id ? 'Save slabs first before marking as paid' : ''}
+                                className="rounded bg-success text-white font-bold px-2 py-1 text-[10px] uppercase tracking-wider hover:bg-emerald-600 transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                               >
                                 Mark Paid
                               </button>

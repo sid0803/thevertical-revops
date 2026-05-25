@@ -2,13 +2,14 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { verifyToken } from '../middleware/auth.js';
+import { requireRoles } from '../middleware/rbac.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 // @route   GET /api/dashboard/summary
 // @desc    Get dashboard summary metrics, funnels, and leaderboard
-router.get('/summary', verifyToken, async (req, res) => {
+router.get('/summary', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
   try {
     const { from, to, userId } = req.query;
 
