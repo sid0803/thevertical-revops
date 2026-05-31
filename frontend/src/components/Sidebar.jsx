@@ -1,4 +1,3 @@
-// frontend/src/components/Sidebar.jsx
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -14,7 +13,11 @@ import {
   Settings,
   LogOut,
   User,
-  Zap
+  Zap,
+  Clock,
+  Award,
+  CheckCircle,
+  Bell
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -24,13 +27,20 @@ const Sidebar = () => {
 
   const links = [
     { name: 'Dashboard', to: '/', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC', 'ACCOUNT_MANAGER', 'FINANCE'] },
+    { name: 'Work Queue', to: '/work-queue', icon: Clock, roles: ['SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'] },
     { name: 'Leads', to: '/leads', icon: Users, roles: ['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC'] },
+    { name: 'Deal Pipeline', to: '/pipeline', icon: GitBranch, roles: ['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC'] },
+    { name: 'Tasks', to: '/tasks', icon: CheckCircle, roles: ['SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'] },
     { name: 'Clients', to: '/clients', icon: Building2, roles: ['SUPER_ADMIN', 'MANAGER', 'ACCOUNT_MANAGER'] },
     { name: 'Billing', to: '/billing', icon: Receipt, roles: ['SUPER_ADMIN', 'MANAGER', 'FINANCE'] },
     { name: 'Proposals', to: '/proposals', icon: FileText, roles: ['SUPER_ADMIN', 'MANAGER', 'FINANCE', 'SALES_EXEC'] },
     { name: 'Split Mapping', to: '/split-mapping', icon: GitBranch, roles: ['SUPER_ADMIN', 'MANAGER', 'ACCOUNT_MANAGER', 'SALES_EXEC'] },
     { name: 'Targets', to: '/targets', icon: Target, roles: ['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC'] },
+    { name: 'Leaderboard', to: '/leaderboard', icon: Award, roles: ['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC'] },
+    { name: 'Partners', to: '/partners', icon: Building2, roles: ['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER'] },
     { name: 'Reports', to: '/reports', icon: BarChart3, roles: ['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER'] },
+    { name: 'Notifications', to: '/notifications', icon: Bell, roles: ['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC', 'ACCOUNT_MANAGER', 'FINANCE'] },
+    { name: 'User Control', to: '/users', icon: Users, roles: ['SUPER_ADMIN'] },
     { name: 'Settings', to: '/settings', icon: Settings, roles: ['SUPER_ADMIN'] },
   ];
 

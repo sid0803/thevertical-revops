@@ -22,6 +22,16 @@ import InvoiceList from './pages/Billing/InvoiceList';
 import CreateInvoice from './pages/Billing/CreateInvoice';
 import InvoiceDetail from './pages/Billing/InvoiceDetail';
 
+// Expanded RevOps OS Pages
+import UserCreation from './pages/UserCreation';
+import Pipeline from './pages/Pipeline';
+import WorkQueue from './pages/WorkQueue';
+import Leaderboard from './pages/Leaderboard';
+import TeamPerformance from './pages/TeamPerformance';
+import ChannelPartners from './pages/ChannelPartners';
+import Tasks from './pages/Tasks';
+import Notifications from './pages/Notifications';
+
 // Layout Wrapper
 const DashboardLayout = ({ title }) => {
   return (
@@ -88,6 +98,38 @@ function App() {
 
           <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC']}><DashboardLayout title="Targets" /></ProtectedRoute>}>
             <Route path="/targets" element={<TargetsDashboard />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC']}><DashboardLayout title="Work Queue" /></ProtectedRoute>}>
+            <Route path="/work-queue" element={<WorkQueue />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC']}><DashboardLayout title="Deal Pipeline" /></ProtectedRoute>}>
+            <Route path="/pipeline" element={<Pipeline />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC']}><DashboardLayout title="Tasks Checklist" /></ProtectedRoute>}>
+            <Route path="/tasks" element={<Tasks />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC']}><DashboardLayout title="Leaderboard" /></ProtectedRoute>}>
+            <Route path="/leaderboard" element={<Leaderboard />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER']}><DashboardLayout title="Partners Network" /></ProtectedRoute>}>
+            <Route path="/partners" element={<ChannelPartners />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER']}><DashboardLayout title="Team Performance Charts" /></ProtectedRoute>}>
+            <Route path="/team" element={<TeamPerformance />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC', 'ACCOUNT_MANAGER', 'FINANCE']}><DashboardLayout title="Notifications" /></ProtectedRoute>}>
+            <Route path="/notifications" element={<Notifications />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']}><DashboardLayout title="User Management" /></ProtectedRoute>}>
+            <Route path="/users" element={<UserCreation />} />
           </Route>
 
           {/* Fallback Catch-all Redirect */}
