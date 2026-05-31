@@ -94,7 +94,8 @@ router.get('/:id', verifyToken, async (req, res) => {
       where: { id },
       include: {
         client: true,
-        lineItems: { orderBy: { sortOrder: 'asc' } }
+        lineItems: { orderBy: { sortOrder: 'asc' } },
+        engagements: { orderBy: { openedAt: 'desc' } }
       }
     });
 
@@ -468,6 +469,57 @@ router.post('/:id/convert', verifyToken, requireRoles('SUPER_ADMIN', 'FINANCE', 
     return res.status(201).json(newInvoice);
   } catch (error) {
     console.error('Error converting proposal to invoice:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/proposals/public/:id
+// @desc    Public endpoint to view proposal (No auth required)
+router.get('/public/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const proposal = await prisma.proposal.findUnique({
+      where: { id },
+      include: {
+        client: true,
+        lineItems: { orderBy: { sortOrder: 'asc' } }
+      }
+    });
+    if (!proposal) {
+      return res.status(404).json({ message: 'Proposal not found' });
+    }
+    return res.json(proposal);
+  } catch (e) {
+    console.error('Error fetching public proposal:', e);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/proposals/public/:id/engage
+// @desc    Log public proposal page reading duration (No auth required)
+router.post('/public/:id/engage', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { pageNumber, durationSec } = req.body;
+    
+    if (pageNumber === undefined || durationSec === undefined) {
+      return res.status(400).json({ message: 'pageNumber and durationSec are required' });
+    }
+
+    const proposal = await prisma.proposal.findUnique({ where: { id } });
+    if (!proposal) return res.status(404).json({ message: 'Proposal not found' });
+
+    const log = await prisma.proposalEngagement.create({
+      data: {
+        proposalId: id,
+        pageNumber: parseInt(pageNumber),
+        durationSec: parseInt(durationSec)
+      }
+    });
+
+    return res.json({ success: true, log });
+  } catch (e) {
+    console.error('Error logging proposal engagement:', e);
     return res.status(500).json({ message: 'Server error' });
   }
 });

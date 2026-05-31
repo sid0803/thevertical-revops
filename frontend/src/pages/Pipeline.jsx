@@ -127,6 +127,19 @@ export default function Pipeline() {
           <span className="flex items-center gap-1"><Clock size={11} /> {days}d in pipe</span>
         </div>
 
+        {lead.score !== undefined && (
+          <div className="flex items-center justify-between text-[9px] px-2 py-0.5 rounded border border-slate-100 bg-slate-50/50 font-bold">
+            <span className="text-slate-450 uppercase tracking-wider text-[8px]">Deal Health Index:</span>
+            <span className={`px-1.5 py-0.2 rounded-full border flex items-center gap-0.5 ${
+              lead.score >= 70 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+              lead.score <= 35 ? 'bg-red-50 text-red-700 border-red-200' : 
+              'bg-amber-50 text-amber-700 border-amber-200'
+            }`}>
+              ⚡ {lead.score} — {lead.score >= 70 ? 'HEALTHY' : lead.score <= 35 ? 'HIGH RISK' : 'MEDIUM RISK'}
+            </span>
+          </div>
+        )}
+
         <div className="flex justify-between items-center text-xs">
           <div className="flex items-center gap-1">
             <div className="h-5 w-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500 uppercase">

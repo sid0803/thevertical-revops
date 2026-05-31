@@ -17,7 +17,8 @@ import {
   Clock,
   Award,
   CheckCircle,
-  Bell
+  Bell,
+  Workflow
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -28,6 +29,7 @@ const Sidebar = () => {
   const links = [
     { name: 'Dashboard', to: '/', icon: LayoutDashboard, roles: ['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC', 'ACCOUNT_MANAGER', 'FINANCE'] },
     { name: 'Work Queue', to: '/work-queue', icon: Clock, roles: ['SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'] },
+    { name: 'Cadences', to: '/cadences', icon: Workflow, roles: ['SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'] },
     { name: 'Leads', to: '/leads', icon: Users, roles: ['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC'] },
     { name: 'Deal Pipeline', to: '/pipeline', icon: GitBranch, roles: ['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC'] },
     { name: 'Tasks', to: '/tasks', icon: CheckCircle, roles: ['SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'] },

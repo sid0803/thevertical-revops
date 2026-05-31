@@ -74,6 +74,8 @@ model Lead {
   tasks           Task[]
   files           LeadFile[]
   client          Client?
+  score           Int            @default(50)
+  cadenceEnrollments LeadCadence[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 }
@@ -217,6 +219,7 @@ model Proposal {
   grandTotal       Float          @default(0)
   status           String         @default("DRAFT")
   notes            String?
+  engagements      ProposalEngagement[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 }
@@ -289,4 +292,50 @@ model Target {
   updatedAt      DateTime @updatedAt
 
   @@unique([assignedToId, month])
+}
+
+// ─── CADENCES & SEQUENCES ─────────────────────────────
+
+model Cadence {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  steps       CadenceStep[]
+  enrollments LeadCadence[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model CadenceStep {
+  id         String   @id @default(cuid())
+  cadenceId  String
+  cadence    Cadence  @relation(fields: [cadenceId], references: [id], onDelete: Cascade)
+  stepNumber Int
+  type       String   // "CALL", "WHATSAPP", "EMAIL"
+  delayDays  Int      @default(0)
+  template   String?
+}
+
+model LeadCadence {
+  id                 String   @id @default(cuid())
+  leadId             String
+  lead               Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  cadenceId          String
+  cadence            Cadence  @relation(fields: [cadenceId], references: [id], onDelete: Cascade)
+  currentStepNumber  Int      @default(1)
+  status             String   @default("ACTIVE") // "ACTIVE", "PAUSED", "COMPLETED", "OPTED_OUT"
+  lastStepTriggeredAt DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([leadId, cadenceId])
+}
+
+model ProposalEngagement {
+  id         String   @id @default(cuid())
+  proposalId String
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  pageNumber Int
+  durationSec Int
+  openedAt   DateTime @default(now())
 }

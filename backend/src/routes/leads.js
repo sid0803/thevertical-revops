@@ -9,6 +9,75 @@ const router = express.Router();
 const prisma = new PrismaClient();
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Lead Scoring Helpers
+async function increaseLeadScore(leadId, incrementAmount = 15) {
+  try {
+    const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+    if (lead) {
+      const newScore = Math.min(100, (lead.score || 50) + incrementAmount);
+      await prisma.lead.update({
+        where: { id: leadId },
+        data: { score: newScore }
+      });
+    }
+  } catch (error) {
+    console.error('Failed to increase lead score:', error);
+  }
+}
+
+async function runLeadScoreDecay() {
+  try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const inactiveLeads = await prisma.lead.findMany({
+      where: {
+        activities: {
+          none: {
+            createdAt: {
+              gte: twentyFourHoursAgo
+            }
+          }
+        },
+        stage: {
+          notIn: ['WIN', 'LOSS']
+        },
+        score: {
+          gt: 0
+        }
+      }
+    });
+
+    console.log(`[Score Decay] Found ${inactiveLeads.length} inactive leads to decay.`);
+    for (const lead of inactiveLeads) {
+      const newScore = Math.max(0, (lead.score || 50) - 5);
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: { score: newScore }
+      });
+    }
+    return inactiveLeads.length;
+  } catch (error) {
+    console.error('Error during lead score decay:', error);
+    return 0;
+  }
+}
+
+// Run decay once after server starts (5 seconds delay to let DB settle) and then every 24 hours
+setTimeout(() => {
+  runLeadScoreDecay();
+}, 5000);
+setInterval(runLeadScoreDecay, 24 * 60 * 60 * 1000);
+
+// Manual score decay trigger
+router.post('/decay', verifyToken, async (req, res) => {
+  try {
+    const count = await runLeadScoreDecay();
+    return res.json({ message: `Score decay completed. ${count} leads decayed.` });
+  } catch (error) {
+    console.error('Manual decay error:', error);
+    return res.status(500).json({ message: 'Error running decay' });
+  }
+});
+
 // New v2 pipeline stages in order
 const STAGE_ORDER = {
   'DISCOVERY_CALL': 1,
@@ -305,6 +374,7 @@ router.put('/:id/stage', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
 
     const updateData = { stage };
     if (stage === 'LOSS') updateData.lossReason = lossReason;
+    updateData.score = Math.min(100, (lead.score || 50) + 15);
 
     const updatedLead = await prisma.lead.update({ where: { id }, data: updateData });
 
@@ -378,6 +448,7 @@ router.post('/:id/note', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
       data: { leadId: id, userId: req.user.id, type: 'NOTE', description },
       include: { user: { select: { id: true, name: true } } }
     });
+    await increaseLeadScore(id, 15);
     return res.status(201).json(activity);
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });
@@ -434,6 +505,7 @@ router.post('/:id/call', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
       });
     }
 
+    await increaseLeadScore(id, 15);
     return res.status(201).json(activity);
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });
@@ -462,6 +534,7 @@ router.post('/:id/email-log', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEA
       },
       include: { user: { select: { id: true, name: true } } }
     });
+    await increaseLeadScore(id, 15);
     return res.status(201).json(activity);
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });
@@ -489,6 +562,7 @@ router.post('/:id/whatsapp-log', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_
       },
       include: { user: { select: { id: true, name: true } } }
     });
+    await increaseLeadScore(id, 15);
     return res.status(201).json(activity);
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });

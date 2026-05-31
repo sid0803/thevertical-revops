@@ -31,6 +31,8 @@ import TeamPerformance from './pages/TeamPerformance';
 import ChannelPartners from './pages/ChannelPartners';
 import Tasks from './pages/Tasks';
 import Notifications from './pages/Notifications';
+import Cadences from './pages/Cadences';
+import ProposalPublicView from './pages/Proposals/ProposalPublicView';
 
 // Layout Wrapper
 const DashboardLayout = ({ title }) => {
@@ -57,6 +59,7 @@ function App() {
         <Routes>
           {/* Public Login Route */}
           <Route path="/login" element={<Login />} />
+          <Route path="/proposals/public/:id" element={<ProposalPublicView />} />
 
           {/* Authenticated Routes */}
           <Route element={<ProtectedRoute><DashboardLayout title="Dashboard" /></ProtectedRoute>}>
@@ -102,6 +105,10 @@ function App() {
 
           <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC']}><DashboardLayout title="Work Queue" /></ProtectedRoute>}>
             <Route path="/work-queue" element={<WorkQueue />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC']}><DashboardLayout title="Prospecting Cadences" /></ProtectedRoute>}>
+            <Route path="/cadences" element={<Cadences />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN', 'MANAGER', 'TEAM_LEADER', 'SALES_EXEC']}><DashboardLayout title="Deal Pipeline" /></ProtectedRoute>}>

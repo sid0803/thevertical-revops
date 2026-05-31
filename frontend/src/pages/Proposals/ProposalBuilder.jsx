@@ -50,6 +50,7 @@ const ProposalBuilder = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [converting, setConverting] = useState(false);
+  const [proposalAnalytics, setProposalAnalytics] = useState([]);
 
   useEffect(() => {
     fetchClients();
@@ -100,6 +101,7 @@ const ProposalBuilder = () => {
         costPerUnit: item.costPerUnit,
         billingType: item.billingType
       })));
+      setProposalAnalytics(data.engagements || []);
     } catch (err) {
       console.error('Error fetching proposal details:', err);
       setError('Failed to fetch proposal details.');
@@ -596,6 +598,81 @@ const ProposalBuilder = () => {
               className="w-full rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-750 outline-none focus:border-accent-blue focus:bg-white disabled:opacity-50 resize-none print:bg-transparent print:border-none print:text-black print:px-0"
             />
           </div>
+
+          {/* Proposal Analytics */}
+          {!isNew && (
+            <div className="rounded-lg border border-slate-200 bg-white p-6 space-y-4 print:hidden">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Proposal Engagement Analytics</h3>
+                <span className="bg-indigo-50 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded border border-indigo-200 uppercase">
+                  Live Analytics Active
+                </span>
+              </div>
+
+              {proposalAnalytics && proposalAnalytics.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="text-[11px] text-slate-500 font-semibold">
+                    Total Heartbeats: <span className="text-slate-800">{proposalAnalytics.length} ({(proposalAnalytics.length * 5)}s total duration)</span>
+                  </div>
+                  {/* Progress bars for Page Turn Durations */}
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(page => {
+                      const pageEngagements = proposalAnalytics.filter(e => e.pageNumber === page);
+                      const totalSecs = pageEngagements.reduce((sum, e) => sum + e.durationSec, 0);
+                      const label = page === 1 ? 'Page 1: Scope Summary' : page === 2 ? 'Page 2: Pricing Matrix' : 'Page 3: Acceptance';
+                      
+                      // Calculate maximum page duration to compute percentage relatively
+                      const pageTotals = [1, 2, 3].map(p => proposalAnalytics.filter(e => e.pageNumber === p).reduce((sum, e) => sum + e.durationSec, 0));
+                      const maxSecs = Math.max(1, ...pageTotals);
+                      const percent = (totalSecs / maxSecs) * 100;
+
+                      return (
+                        <div key={page} className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold">
+                            <span className="text-slate-650">{label}</span>
+                            <span className="text-slate-800 font-bold">{totalSecs}s read</span>
+                          </div>
+                          <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-indigo-500 rounded-full transition-all duration-500" 
+                              style={{ width: `${percent}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-xs text-slate-450 italic py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  No client page-views recorded yet.
+                </div>
+              )}
+
+              {/* Share Link */}
+              <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400">Share Proposal Link</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={`http://localhost:5173/proposals/public/${id}`}
+                    className="flex-1 rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-[10px] text-slate-600 outline-none focus:border-accent-blue"
+                    onClick={(e) => e.target.select()}
+                  />
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(`http://localhost:5173/proposals/public/${id}`);
+                      alert("Link copied to clipboard!");
+                    }}
+                    className="rounded bg-accent-blue text-white text-[9px] font-bold uppercase tracking-wider px-3 py-1.5 hover:bg-blue-750 transition active:scale-95"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Client Accept Banner / Warning */}
           {status === 'ACCEPTED' && (

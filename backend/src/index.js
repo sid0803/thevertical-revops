@@ -16,8 +16,10 @@ import proposalsRouter from './routes/proposals.js';
 import targetsRouter from './routes/targets.js';
 import clientsRouter from './routes/clients.js';
 import tasksRouter from './routes/tasks.js';
-import filesRouter from './routes/files.js';
 import companyProfileRouter from './routes/companyProfile.js';
+import cadencesRouter from './routes/cadences.js';
+import filesRouter from './routes/files.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +49,7 @@ app.use('/api/clients', clientsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/files', filesRouter);
 app.use('/api/company-profile', companyProfileRouter);
+app.use('/api/cadences', cadencesRouter);
 
 // Health Check
 app.get('/api/health', (req, res) => {
