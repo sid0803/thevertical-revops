@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
-import { Settings, Plus, Percent, RefreshCw, ToggleLeft, ToggleRight, X, ShieldAlert } from 'lucide-react';
+import { Settings, Plus, Percent, RefreshCw, ToggleLeft, ToggleRight, X, ShieldAlert, Building, Globe, Phone, Mail, Image, Save } from 'lucide-react';
 
 const SettingsPage = () => {
   const { user } = useAuth();
@@ -10,6 +10,24 @@ const SettingsPage = () => {
   const [slabs, setSlabs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Company Profile states
+  const [profileData, setProfileData] = useState({
+    companyName: 'TheVertical.ai',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    gstNumber: '',
+    phone: '',
+    email: '',
+    website: '',
+    logoUrl: ''
+  });
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState('');
+  const [profileError, setProfileError] = useState('');
 
   // Form states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,6 +41,7 @@ const SettingsPage = () => {
 
   useEffect(() => {
     fetchSlabs();
+    fetchProfile();
   }, []);
 
   const fetchSlabs = async () => {
@@ -35,6 +54,52 @@ const SettingsPage = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProfile = async () => {
+    setProfileLoading(true);
+    try {
+      const response = await api.get('/company-profile');
+      if (response.data) {
+        setProfileData({
+          companyName: response.data.companyName || 'TheVertical.ai',
+          address: response.data.address || '',
+          city: response.data.city || '',
+          state: response.data.state || '',
+          pincode: response.data.pincode || '',
+          gstNumber: response.data.gstNumber || '',
+          phone: response.data.phone || '',
+          email: response.data.email || '',
+          website: response.data.website || '',
+          logoUrl: response.data.logoUrl || ''
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load company profile:', err);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleProfileInputChange = (e) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    setProfileSaving(true);
+    setProfileSuccess('');
+    setProfileError('');
+    try {
+      await api.put('/company-profile', profileData);
+      setProfileSuccess('Company profile updated successfully!');
+      setTimeout(() => setProfileSuccess(''), 3500);
+    } catch (err) {
+      setProfileError(err.response?.data?.message || 'Failed to update company profile.');
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -94,6 +159,203 @@ const SettingsPage = () => {
           <Plus className="h-5 w-5" />
           <span>Add GST Slab</span>
         </button>
+      </div>
+
+      {/* Company Profile Settings Card */}
+      <div className="glass rounded-xl p-6 bg-white border border-slate-200 shadow-sm space-y-6">
+        <div className="flex items-center space-x-2 text-slate-700 font-semibold border-b border-slate-100 pb-3">
+          <Building className="h-5 w-5 text-accent" />
+          <h2 className="text-sm font-bold uppercase tracking-wider">Company Profile & Proposal Branding</h2>
+        </div>
+
+        {profileLoading ? (
+          <div className="flex h-32 items-center justify-center">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent"></div>
+          </div>
+        ) : (
+          <form onSubmit={handleSaveProfile} className="space-y-4">
+            {profileSuccess && (
+              <div className="rounded-lg bg-emerald-50 border border-emerald-250 p-3.5 text-xs font-bold text-emerald-600">
+                {profileSuccess}
+              </div>
+            )}
+            {profileError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3.5 text-xs font-bold text-red-600">
+                {profileError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Company Name *
+                </label>
+                <input
+                  type="text"
+                  name="companyName"
+                  required
+                  value={profileData.companyName}
+                  onChange={handleProfileInputChange}
+                  placeholder="e.g. TheVertical.ai"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  GSTIN (GST Number)
+                </label>
+                <input
+                  type="text"
+                  name="gstNumber"
+                  value={profileData.gstNumber}
+                  onChange={handleProfileInputChange}
+                  placeholder="e.g. 29ABCDE1234F1Z5"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Contact Phone
+                </label>
+                <div className="relative">
+                  <Phone className="absolute inset-y-0 left-2.5 my-auto h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    name="phone"
+                    value={profileData.phone}
+                    onChange={handleProfileInputChange}
+                    placeholder="+91 98765 43210"
+                    className="w-full rounded-lg border border-slate-200 pl-8 pr-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute inset-y-0 left-2.5 my-auto h-4 w-4 text-slate-400" />
+                  <input
+                    type="email"
+                    name="email"
+                    value={profileData.email}
+                    onChange={handleProfileInputChange}
+                    placeholder="sales@company.com"
+                    className="w-full rounded-lg border border-slate-200 pl-8 pr-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Website URL
+                </label>
+                <div className="relative">
+                  <Globe className="absolute inset-y-0 left-2.5 my-auto h-4 w-4 text-slate-400" />
+                  <input
+                    type="text"
+                    name="website"
+                    value={profileData.website}
+                    onChange={handleProfileInputChange}
+                    placeholder="https://company.com"
+                    className="w-full rounded-lg border border-slate-200 pl-8 pr-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                Full Address
+              </label>
+              <textarea
+                name="address"
+                rows={2}
+                value={profileData.address}
+                onChange={handleProfileInputChange}
+                placeholder="e.g. 4th Floor, Prestige Tower, MG Road"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent resize-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  City
+                </label>
+                <input
+                  type="text"
+                  name="city"
+                  value={profileData.city}
+                  onChange={handleProfileInputChange}
+                  placeholder="e.g. Bangalore"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  State
+                </label>
+                <input
+                  type="text"
+                  name="state"
+                  value={profileData.state}
+                  onChange={handleProfileInputChange}
+                  placeholder="e.g. Karnataka"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Pincode / Postal Code
+                </label>
+                <input
+                  type="text"
+                  name="pincode"
+                  value={profileData.pincode}
+                  onChange={handleProfileInputChange}
+                  placeholder="e.g. 560001"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                Company Logo URL (for Proposal Letterhead)
+              </label>
+              <div className="relative">
+                <Image className="absolute inset-y-0 left-2.5 my-auto h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  name="logoUrl"
+                  value={profileData.logoUrl}
+                  onChange={handleProfileInputChange}
+                  placeholder="e.g. https://company.com/logo.png"
+                  className="w-full rounded-lg border border-slate-200 pl-8 pr-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={profileSaving}
+                className="flex items-center space-x-2 rounded bg-accent px-4 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-md hover:bg-accent-dark transition disabled:opacity-50"
+              >
+                <Save className="h-4 w-4" />
+                <span>{profileSaving ? 'Saving...' : 'Save Profile Details'}</span>
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Main Settings Card */}

@@ -39,6 +39,63 @@ function request(method, path, body, token) {
   });
 }
 
+function uploadCSV(path, csvString, overwrite, token) {
+  return new Promise((resolve, reject) => {
+    const boundary = '----WebKitFormBoundaryE2ETest';
+    let payload = 
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="test_leads.csv"\r\n` +
+      `Content-Type: text/csv\r\n\r\n` +
+      `${csvString}\r\n`;
+
+    if (overwrite !== undefined) {
+      payload += 
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="overwrite"\r\n\r\n` +
+        `${overwrite}\r\n`;
+    }
+
+    payload += `--${boundary}--\r\n`;
+
+    const opts = {
+      hostname: 'localhost',
+      port: 5000,
+      path: `/api${path}`,
+      method: 'POST',
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Authorization': `Bearer ${token}`,
+        'Content-Length': Buffer.byteLength(payload)
+      }
+    };
+    
+    const req = http.request(opts, (res) => {
+      let raw = '';
+      res.on('data', d => raw += d);
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, data: JSON.parse(raw) }); }
+        catch { resolve({ status: res.statusCode, data: raw }); }
+      });
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+async function pollJobStatus(jobId, token) {
+  for (let i = 0; i < 20; i++) {
+    const res = await request('GET', `/leads/bulk-upload/status/${jobId}`, null, token);
+    if (res.status === 200) {
+      if (res.data.status === 'completed' || res.data.status === 'failed') {
+        return res.data;
+      }
+    }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  throw new Error(`Job ${jobId} timed out during status polling`);
+}
+
 function check(label, pass, detail = '') {
   const icon = pass ? '✅' : '❌';
   results.push({ label, pass, detail });
@@ -93,34 +150,40 @@ async function run() {
   check('Leads: Create new lead', newLead.status === 201, `status=${newLead.status}`);
   LEAD_ID = newLead.data?.id || '';
 
-  // 10. TEST: Stage skip prevention (NEW → PAYMENT_COMPLETED)
+  // 10. TEST: Stage skip prevention (DISCOVERY_CALL → NEGOTIATION)
   if (LEAD_ID) {
-    const skipRes = await request('PUT', `/leads/${LEAD_ID}/stage`, { stage: 'PAYMENT_COMPLETED' }, TOKEN);
+    const skipRes = await request('PUT', `/leads/${LEAD_ID}/stage`, { stage: 'NEGOTIATION' }, TOKEN);
     check('Leads: Stage skip blocked', skipRes.status === 400, `status=${skipRes.status}, msg="${skipRes.data?.message}"`);
   }
 
-  // 11. TEST: Sequential stage progression NEW → INTERESTED
+  // 11. TEST: Sequential stage progression DISCOVERY_CALL → DEMO
   if (LEAD_ID) {
-    const s1 = await request('PUT', `/leads/${LEAD_ID}/stage`, { stage: 'INTERESTED' }, TOKEN);
-    check('Leads: Stage NEW → INTERESTED', s1.status === 200, `status=${s1.status}`);
+    const s1 = await request('PUT', `/leads/${LEAD_ID}/stage`, { stage: 'DEMO' }, TOKEN);
+    check('Leads: Stage DISCOVERY_CALL → DEMO', s1.status === 200, `status=${s1.status}`);
   }
 
-  // 12. TEST: Stage INTERESTED → PROPOSAL_SHARED
+  // 12. TEST: Stage DEMO → PROPOSAL
   if (LEAD_ID) {
-    const s2 = await request('PUT', `/leads/${LEAD_ID}/stage`, { stage: 'PROPOSAL_SHARED' }, TOKEN);
-    check('Leads: Stage INTERESTED → PROPOSAL_SHARED', s2.status === 200, `status=${s2.status}`);
+    const s2 = await request('PUT', `/leads/${LEAD_ID}/stage`, { stage: 'PROPOSAL' }, TOKEN);
+    check('Leads: Stage DEMO → PROPOSAL', s2.status === 200, `status=${s2.status}`);
   }
 
-  // 13. TEST: Stage PROPOSAL_SHARED → PAYMENT_COMPLETED (auto client creation)
+  // 13. TEST: Stage PROPOSAL → NEGOTIATION
   if (LEAD_ID) {
-    const s3 = await request('PUT', `/leads/${LEAD_ID}/stage`, { stage: 'PAYMENT_COMPLETED' }, TOKEN);
-    check('Leads: Stage → PAYMENT_COMPLETED', s3.status === 200, `status=${s3.status}`);
+    const s2b = await request('PUT', `/leads/${LEAD_ID}/stage`, { stage: 'NEGOTIATION' }, TOKEN);
+    check('Leads: Stage PROPOSAL → NEGOTIATION', s2b.status === 200, `status=${s2b.status}`);
+  }
+
+  // 13b. TEST: Stage NEGOTIATION → WIN (auto client creation)
+  if (LEAD_ID) {
+    const s3 = await request('PUT', `/leads/${LEAD_ID}/stage`, { stage: 'WIN' }, TOKEN);
+    check('Leads: Stage → WIN', s3.status === 200, `status=${s3.status}`);
   }
 
   // 14. TEST: Client auto-created from lead
   await new Promise(r => setTimeout(r, 500));
   const clients = await request('GET', '/clients', null, TOKEN);
-  check('Clients: Auto-created on PAYMENT_COMPLETED', clients.status === 200 && Array.isArray(clients.data), `count=${clients.data?.length}`);
+  check('Clients: Auto-created on WIN', clients.status === 200 && Array.isArray(clients.data), `count=${clients.data?.length}`);
   const e2eClient = clients.data?.find(c => c.contactName === 'E2E Test Lead');
   check('Clients: E2E test client found', !!e2eClient, `company=${e2eClient?.companyName}`);
   CLIENT_ID = e2eClient?.id || clients.data?.[0]?.id || '';
@@ -218,7 +281,7 @@ async function run() {
   const dashRes = await request('GET', '/dashboard/summary', null, TOKEN);
   check('Dashboard: Summary loads', dashRes.status === 200, `status=${dashRes.status}`);
   check('Dashboard: AI Insights array present', Array.isArray(dashRes.data?.aiInsights) && dashRes.data.aiInsights.length > 0, `insightCount=${dashRes.data?.aiInsights?.length}`);
-  check('Dashboard: Leads by stage populated', typeof dashRes.data?.leadsByStage === 'object', `NEW=${dashRes.data?.leadsByStage?.NEW}`);
+  check('Dashboard: Leads by stage populated', typeof dashRes.data?.leadsByStage === 'object', `DISCOVERY_CALL=${dashRes.data?.leadsByStage?.DISCOVERY_CALL}`);
   check('Dashboard: Team leaderboard present', Array.isArray(dashRes.data?.teamPerformance), `reps=${dashRes.data?.teamPerformance?.length}`);
 
   // 27. TEST: RBAC enforcement — Sales rep cannot access billing
@@ -231,6 +294,184 @@ async function run() {
   if (finToken) {
     const rbacRes2 = await request('POST', '/targets', { assignedToId: 'x', month: '2026-05', callTarget: 10 }, finToken);
     check('RBAC: Finance blocked from setting targets (403)', rbacRes2.status === 403, `status=${rbacRes2.status}`);
+  }
+
+  // 29. TEST: Bulk Upload Leads via CSV (overwrite = false)
+  const randPhoneNum = `9${Math.floor(100000000 + Math.random() * 900000000)}`;
+  const randEmailStr = `bulk-${Math.floor(Math.random() * 1000000)}@test.com`;
+  const csvContent = 
+    "name,phone,personalEmail,companyName,companyEmail,linkedinUrl,socialMediaUrl,source,notes\n" +
+    `Bulk E2E Lead 1,${randPhoneNum},${randEmailStr},Bulk Corp,work1@test.com,,,,notes 1\n` +
+    "Bulk E2E Lead 2,9876543210,rajesh@acmecorp.com,,,,,,,notes 2\n" +
+    ",,,,,,,,,\n";
+  
+  const uploadRes = await uploadCSV('/leads/bulk-upload', csvContent, false, TOKEN);
+  check('Bulk Upload: Start async import CSV (overwrite=false)', uploadRes.status === 202, `status=${uploadRes.status}, jobId=${uploadRes.data?.jobId}`);
+  
+  if (uploadRes.status === 202) {
+    const job = await pollJobStatus(uploadRes.data.jobId, TOKEN);
+    check('Bulk Upload: Job completed successfully (overwrite=false)', job.status === 'completed', `status=${job.status}`);
+    const summary = job.summary;
+    check('Bulk Upload: Correct total parsed count (overwrite=false)', summary?.total === 3, `total=${summary?.total}`);
+    check('Bulk Upload: Correct imported count (overwrite=false)', summary?.imported === 1, `imported=${summary?.imported}`);
+    check('Bulk Upload: Correct duplicates count (overwrite=false)', summary?.duplicates === 1, `duplicates=${summary?.duplicates}`);
+    check('Bulk Upload: Correct updated count (overwrite=false)', summary?.updated === 0, `updated=${summary?.updated}`);
+    check('Bulk Upload: Correct failed count (overwrite=false)', summary?.failed === 1, `failed=${summary?.failed}`);
+  }
+
+  // 30. TEST: Bulk Upload Leads via CSV (overwrite = true)
+  const uploadRes2 = await uploadCSV('/leads/bulk-upload', csvContent, true, TOKEN);
+  check('Bulk Upload: Start async import CSV (overwrite=true)', uploadRes2.status === 202, `status=${uploadRes2.status}, jobId=${uploadRes2.data?.jobId}`);
+  
+  if (uploadRes2.status === 202) {
+    const job = await pollJobStatus(uploadRes2.data.jobId, TOKEN);
+    check('Bulk Upload: Job completed successfully (overwrite=true)', job.status === 'completed', `status=${job.status}`);
+    const summary = job.summary;
+    check('Bulk Upload: Correct total parsed count (overwrite=true)', summary?.total === 3, `total=${summary?.total}`);
+    check('Bulk Upload: Correct imported count (overwrite=true)', summary?.imported === 0, `imported=${summary?.imported}`);
+    check('Bulk Upload: Correct duplicates count (overwrite=true)', summary?.duplicates === 0, `duplicates=${summary?.duplicates}`);
+    check('Bulk Upload: Correct updated count (overwrite=true)', summary?.updated === 2, `updated=${summary?.updated}`);
+    check('Bulk Upload: Correct failed count (overwrite=true)', summary?.failed === 1, `failed=${summary?.failed}`);
+  }
+
+  // 31. TEST: BOLA Access Restrictions (Sales Rep cannot access/modify other rep's/TL's lead or resources)
+  console.log('\n--- Running BOLA Security Validation Tests ---');
+
+  const usersRes = await request('GET', '/users', null, TOKEN);
+  const users = usersRes.data || [];
+  const arunUser = users.find(u => u.email === 'arun@thevertical.ai');
+  const raviUser = users.find(u => u.email === 'ravi@thevertical.ai');
+
+  if (arunUser && raviUser && repToken) {
+    // Create a lead assigned to Arun
+    const arunLeadPhone = '8' + Math.floor(100000000 + Math.random() * 900000000);
+    const arunLeadEmail = `bola-arun-${Math.floor(Math.random() * 1000000)}@test.com`;
+    const arunLeadRes = await request('POST', '/leads', {
+      name: 'Arun Private Lead',
+      phone: arunLeadPhone,
+      personalEmail: arunLeadEmail,
+      source: 'Website',
+      notes: 'TL Private Lead',
+      assignedToId: arunUser.id
+    }, TOKEN);
+
+    const arunLeadId = arunLeadRes.data?.id;
+    check('BOLA Setup: Create lead assigned to Arun', arunLeadRes.status === 201 && !!arunLeadId, `leadId=${arunLeadId}`);
+
+    if (arunLeadId) {
+      // 1. GET /leads/:id
+      const bolaGetLead = await request('GET', `/leads/${arunLeadId}`, null, repToken);
+      check('BOLA: Sales Rep blocked from GET other rep\'s lead (403)', bolaGetLead.status === 403, `status=${bolaGetLead.status}`);
+
+      // 2. PUT /leads/:id
+      const bolaPutLead = await request('PUT', `/leads/${arunLeadId}`, { name: 'Hacked name' }, repToken);
+      check('BOLA: Sales Rep blocked from PUT other rep\'s lead (403)', bolaPutLead.status === 403, `status=${bolaPutLead.status}`);
+
+      // 3. PUT /leads/:id/stage
+      const bolaPutStage = await request('PUT', `/leads/${arunLeadId}/stage`, { stage: 'DEMO' }, repToken);
+      check('BOLA: Sales Rep blocked from stage update on other rep\'s lead (403)', bolaPutStage.status === 403, `status=${bolaPutStage.status}`);
+
+      // 4. POST /leads/:id/note
+      const bolaPostNote = await request('POST', `/leads/${arunLeadId}/note`, { description: 'Hacked note' }, repToken);
+      check('BOLA: Sales Rep blocked from note creation on other rep\'s lead (403)', bolaPostNote.status === 403, `status=${bolaPostNote.status}`);
+
+      // 5. POST /leads/:id/call
+      const bolaPostCall = await request('POST', `/leads/${arunLeadId}/call`, { duration: 10, description: 'Hacked call' }, repToken);
+      check('BOLA: Sales Rep blocked from call logging on other rep\'s lead (403)', bolaPostCall.status === 403, `status=${bolaPostCall.status}`);
+
+      // 6. POST /tasks
+      const bolaPostTask = await request('POST', '/tasks', {
+        leadId: arunLeadId,
+        title: 'Hacked Task',
+        dueDate: new Date(Date.now() + 86400000).toISOString()
+      }, repToken);
+      check('BOLA: Sales Rep blocked from creating task on other rep\'s lead (403)', bolaPostTask.status === 403, `status=${bolaPostTask.status}`);
+
+      // Create a task as Admin
+      const adminTaskRes = await request('POST', '/tasks', {
+        leadId: arunLeadId,
+        title: 'Arun\'s Private Task',
+        dueDate: new Date(Date.now() + 86400000).toISOString(),
+        assignedToId: arunUser.id
+      }, TOKEN);
+      const adminTaskId = adminTaskRes.data?.id;
+
+      if (adminTaskId) {
+        // 7. GET /tasks?leadId=xxx
+        const bolaGetTasks = await request('GET', `/tasks?leadId=${arunLeadId}`, null, repToken);
+        check('BOLA: Sales Rep blocked from GET tasks on other rep\'s lead (403)', bolaGetTasks.status === 403, `status=${bolaGetTasks.status}`);
+
+        // 8. PUT /tasks/:id
+        const bolaPutTask = await request('PUT', `/tasks/${adminTaskId}`, { title: 'Hacked Task Title' }, repToken);
+        check('BOLA: Sales Rep blocked from PUT other rep\'s task (403)', bolaPutTask.status === 403, `status=${bolaPutTask.status}`);
+
+        // 9. PUT /tasks/:id/complete
+        const bolaCompleteTask = await request('PUT', `/tasks/${adminTaskId}/complete`, {}, repToken);
+        check('BOLA: Sales Rep blocked from completing other rep\'s task (403)', bolaCompleteTask.status === 403, `status=${bolaCompleteTask.status}`);
+
+        // 10. DELETE /tasks/:id
+        const bolaDeleteTask = await request('DELETE', `/tasks/${adminTaskId}`, null, repToken);
+        check('BOLA: Sales Rep blocked from deleting other rep\'s task (403)', bolaDeleteTask.status === 403, `status=${bolaDeleteTask.status}`);
+      }
+
+      // Transition lead sequentially to WIN to create a Client
+      await request('PUT', `/leads/${arunLeadId}/stage`, { stage: 'DEMO' }, TOKEN);
+      await request('PUT', `/leads/${arunLeadId}/stage`, { stage: 'PROPOSAL' }, TOKEN);
+      await request('PUT', `/leads/${arunLeadId}/stage`, { stage: 'NEGOTIATION' }, TOKEN);
+      await request('PUT', `/leads/${arunLeadId}/stage`, { stage: 'WIN' }, TOKEN);
+
+      // Fetch client
+      const adminClientsRes = await request('GET', '/clients', null, TOKEN);
+      const arunClient = adminClientsRes.data?.find(c => c.leadId === arunLeadId);
+      const arunClientId = arunClient?.id;
+
+      if (arunClientId) {
+        // Create proposal for Arun's client
+        const arunPropRes = await request('POST', '/proposals', {
+          clientId: arunClientId,
+          clientName: 'Arun Lead Corp',
+          validityDays: 15,
+          gstRate: 18,
+          notes: 'Arun test proposal',
+          lineItems: [
+            { component: 'Test Component', description: 'desc', qty: 1, costPerUnit: 1000, billingType: 'ONE_TIME' }
+          ]
+        }, TOKEN);
+        const arunProposalId = arunPropRes.data?.id;
+
+        if (arunProposalId) {
+          // 11. GET /proposals/:id
+          const bolaGetProp = await request('GET', `/proposals/${arunProposalId}`, null, repToken);
+          check('BOLA: Sales Rep blocked from GET other rep\'s proposal (403)', bolaGetProp.status === 403, `status=${bolaGetProp.status}`);
+
+          // 12. PUT /proposals/:id
+          const bolaPutProp = await request('PUT', `/proposals/${arunProposalId}`, { notes: 'hacked notes' }, repToken);
+          check('BOLA: Sales Rep blocked from PUT other rep\'s proposal (403)', bolaPutProp.status === 403, `status=${bolaPutProp.status}`);
+
+          // 13. POST /proposals/:id/send
+          const bolaSendProp = await request('POST', `/proposals/${arunProposalId}/send`, {}, repToken);
+          check('BOLA: Sales Rep blocked from sending other rep\'s proposal (403)', bolaSendProp.status === 403, `status=${bolaSendProp.status}`);
+        }
+
+        // Create invoice for Arun's client
+        const arunInvoiceRes = await request('POST', '/billing/invoices', {
+          clientId: arunClientId,
+          baseAmount: 50000,
+          gstRate: 18,
+          dueDate: new Date(Date.now() + 30 * 86400000).toISOString(),
+          notes: 'Arun Test Invoice'
+        }, TOKEN);
+        const arunInvoiceId = arunInvoiceRes.data?.id;
+
+        if (arunInvoiceId) {
+          // 14. GET /billing/invoices/:id
+          const bolaGetInvoice = await request('GET', `/billing/invoices/${arunInvoiceId}`, null, repToken);
+          check('BOLA: Sales Rep blocked from GET other rep\'s invoice (403)', bolaGetInvoice.status === 403, `status=${bolaGetInvoice.status}`);
+        }
+      }
+    }
+  } else {
+    check('BOLA Setup: Skip tests due to missing user contexts', false);
   }
 
   // SUMMARY

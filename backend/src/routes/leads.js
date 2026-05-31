@@ -1,86 +1,73 @@
 // backend/src/routes/leads.js
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { verifyToken } from '../middleware/auth.js';
+import multer from 'multer';
+import { verifyToken, getAccessibleUserIds, checkLeadAccess } from '../middleware/auth.js';
 import { requireRoles } from '../middleware/rbac.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
+const upload = multer({ storage: multer.memoryStorage() });
 
+// New v2 pipeline stages in order
 const STAGE_ORDER = {
-  'NEW': 1,
-  'INTERESTED': 2,
-  'PROPOSAL_SHARED': 3,
-  'PAYMENT_COMPLETED': 4
+  'DISCOVERY_CALL': 1,
+  'DEMO': 2,
+  'PROPOSAL': 3,
+  'NEGOTIATION': 4,
+  'WIN': 5
 };
 
-// Helper: Get accessible assigned user IDs for a user based on their role
-async function getAccessibleUserIds(user) {
-  if (user.role === 'SUPER_ADMIN' || user.role === 'MANAGER' || user.role === 'FINANCE' || user.role === 'ACCOUNT_MANAGER') {
-    return null; // Can see everything
-  }
-
-  if (user.role === 'TEAM_LEADER') {
-    const teamMembers = await prisma.user.findMany({
-      where: { teamLeaderId: user.id },
-      select: { id: true }
-    });
-    const ids = teamMembers.map(m => m.id);
-    ids.push(user.id);
-    return ids;
-  }
-
-  if (user.role === 'SALES_EXEC') {
-    return [user.id];
-  }
-
-  return [];
-}
+const CLOSED_STAGES = ['WIN', 'LOSS'];
 
 // @route   GET /api/leads
-// @desc    Get all leads (filtered by role + query params)
 router.get('/', verifyToken, async (req, res) => {
   try {
     const userIds = await getAccessibleUserIds(req.user);
-    
     let whereClause = {};
-    if (userIds !== null) {
-      whereClause.assignedToId = { in: userIds };
+    if (userIds !== null) whereClause.assignedToId = { in: userIds };
+
+    const { stage, assignedToId, from, to, search, dateFilter } = req.query;
+
+    if (stage) whereClause.stage = stage;
+    if (assignedToId) {
+      whereClause.assignedToId = req.user.role === 'SALES_EXEC' ? req.user.id : assignedToId;
     }
 
-    // Apply stage, assignedTo, search, date filters
-    const { stage, assignedToId, from, to, search } = req.query;
-    
-    if (stage) {
-      whereClause.stage = stage;
-    }
-    if (assignedToId) {
-      // SECURITY: SALES_EXEC can only filter by their own ID, prevent IDOR
-      if (req.user.role === 'SALES_EXEC') {
-        whereClause.assignedToId = req.user.id;
-      } else {
-        whereClause.assignedToId = assignedToId;
-      }
-    }
-    if (from || to) {
+    // Date filter shortcuts: today, yesterday, tomorrow, custom (from/to)
+    const now = new Date();
+    if (dateFilter === 'today') {
+      const start = new Date(now); start.setHours(0, 0, 0, 0);
+      const end = new Date(now); end.setHours(23, 59, 59, 999);
+      whereClause.createdAt = { gte: start, lte: end };
+    } else if (dateFilter === 'yesterday') {
+      const start = new Date(now); start.setDate(start.getDate() - 1); start.setHours(0, 0, 0, 0);
+      const end = new Date(start); end.setHours(23, 59, 59, 999);
+      whereClause.createdAt = { gte: start, lte: end };
+    } else if (dateFilter === 'tomorrow') {
+      const start = new Date(now); start.setDate(start.getDate() + 1); start.setHours(0, 0, 0, 0);
+      const end = new Date(start); end.setHours(23, 59, 59, 999);
+      whereClause.createdAt = { gte: start, lte: end };
+    } else if (from || to) {
       whereClause.createdAt = {};
       if (from) whereClause.createdAt.gte = new Date(from);
       if (to) whereClause.createdAt.lte = new Date(to);
     }
+
     if (search) {
       whereClause.OR = [
         { name: { contains: search } },
         { phone: { contains: search } },
-        { company: { contains: search } }
+        { companyName: { contains: search } },
+        { personalEmail: { contains: search } }
       ];
     }
 
     const leads = await prisma.lead.findMany({
       where: whereClause,
       include: {
-        assignedTo: {
-          select: { id: true, name: true, role: true }
-        }
+        assignedTo: { select: { id: true, name: true, role: true } },
+        _count: { select: { tasks: true, files: true, activities: true } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -93,66 +80,53 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // @route   GET /api/leads/search
-// @desc    Global search leads by name or phone or company
 router.get('/search', verifyToken, async (req, res) => {
   try {
     const { q } = req.query;
-    if (!q) {
-      return res.json([]);
-    }
+    if (!q) return res.json([]);
 
     const userIds = await getAccessibleUserIds(req.user);
     let whereClause = {
       OR: [
         { name: { contains: q } },
         { phone: { contains: q } },
-        { company: { contains: q } }
+        { companyName: { contains: q } }
       ]
     };
-
-    if (userIds !== null) {
-      whereClause.assignedToId = { in: userIds };
-    }
+    if (userIds !== null) whereClause.assignedToId = { in: userIds };
 
     const leads = await prisma.lead.findMany({
       where: whereClause,
       take: 10,
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        stage: true,
-        company: true
-      }
+      select: { id: true, name: true, phone: true, stage: true, companyName: true }
     });
-
     return res.json(leads);
   } catch (error) {
-    console.error('Lead search error:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 });
 
 // @route   POST /api/leads
-// @desc    Create a new lead (with strict duplicate check)
 router.post('/', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
   try {
-    const { name, phone, email, source, company, notes, assignedToId } = req.body;
+    const {
+      name, phone, personalEmail, companyName, companyEmail,
+      linkedinUrl, socialMediaUrl, source, notes, assignedToId
+    } = req.body;
 
     if (!name || !phone || !source) {
-      return res.status(400).json({ message: 'Name, phone, and source are mandatory fields' });
+      return res.status(400).json({ message: 'Name, phone, and source are mandatory' });
     }
 
-    // Duplicate check: check if phone or email already exists
+    // Duplicate check
     const duplicate = await prisma.lead.findFirst({
       where: {
         OR: [
-          { phone: phone },
-          ...(email ? [{ email: email }] : [])
+          { phone },
+          ...(personalEmail ? [{ personalEmail }] : [])
         ]
       }
     });
-
     if (duplicate) {
       return res.status(409).json({
         error: 'Lead already exists',
@@ -162,43 +136,26 @@ router.post('/', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_
     }
 
     let assignedId = assignedToId;
-    if (!assignedId && (req.user.role === 'SALES_EXEC' || req.user.role === 'TEAM_LEADER')) {
+    if (!assignedId && ['SALES_EXEC', 'TEAM_LEADER'].includes(req.user.role)) {
       assignedId = req.user.id;
     }
 
     const newLead = await prisma.lead.create({
       data: {
-        name,
-        phone,
-        email,
-        source,
-        company,
-        notes,
+        name, phone, personalEmail, companyName, companyEmail,
+        linkedinUrl, socialMediaUrl, source, notes,
         assignedToId: assignedId,
-        stage: 'NEW'
+        stage: 'DISCOVERY_CALL'
       }
     });
 
-    // Log initial STAGE_CHANGE activity
     await prisma.leadActivity.create({
       data: {
-        leadId: newLead.id,
-        userId: req.user.id,
+        leadId: newLead.id, userId: req.user.id,
         type: 'STAGE_CHANGE',
-        description: `Lead created in stage NEW`
+        description: `Lead created — started at DISCOVERY CALL stage`
       }
     });
-
-    if (notes) {
-      await prisma.leadActivity.create({
-        data: {
-          leadId: newLead.id,
-          userId: req.user.id,
-          type: 'NOTE',
-          description: `Initial note: ${notes}`
-        }
-      });
-    }
 
     return res.status(201).json(newLead);
   } catch (error) {
@@ -208,7 +165,6 @@ router.post('/', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_
 });
 
 // @route   GET /api/leads/:id
-// @desc    Get lead details + activities timeline
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -217,28 +173,43 @@ router.get('/:id', verifyToken, async (req, res) => {
     const lead = await prisma.lead.findUnique({
       where: { id },
       include: {
-        assignedTo: {
-          select: { id: true, name: true, role: true }
-        },
+        assignedTo: { select: { id: true, name: true, role: true } },
         client: true,
         activities: {
-          include: {
-            user: {
-              select: { name: true }
-            }
-          },
+          include: { user: { select: { id: true, name: true } } },
           orderBy: { createdAt: 'desc' }
+        },
+        tasks: {
+          include: { assignedTo: { select: { id: true, name: true } } },
+          orderBy: { dueDate: 'asc' }
+        },
+        files: {
+          include: { uploadedBy: { select: { id: true, name: true } } },
+          orderBy: { uploadedAt: 'desc' }
         }
       }
     });
 
-    if (!lead) {
-      return res.status(404).json({ message: 'Lead not found' });
-    }
-
-    // Check authorization to view this lead
+    if (!lead) return res.status(404).json({ message: 'Lead not found' });
     if (userIds !== null && !userIds.includes(lead.assignedToId)) {
       return res.status(403).json({ message: 'Access denied to this lead record' });
+    }
+
+    // Auto-update overdue status on tasks before returning
+    const nowTime = new Date();
+    const overdueTaskIds = lead.tasks
+      .filter(t => !t.isCompleted && !t.isOverdue && new Date(t.dueDate) < nowTime)
+      .map(t => t.id);
+
+    if (overdueTaskIds.length > 0) {
+      await prisma.task.updateMany({
+        where: { id: { in: overdueTaskIds } },
+        data: { isOverdue: true }
+      });
+      overdueTaskIds.forEach(tid => {
+        const task = lead.tasks.find(t => t.id === tid);
+        if (task) task.isOverdue = true;
+      });
     }
 
     return res.json(lead);
@@ -248,80 +219,107 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 
+// @route   PUT /api/leads/:id
+// @desc    Update lead contact/company info
+router.put('/:id', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const hasAccess = await checkLeadAccess(id, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this lead record' });
+    }
+
+    const {
+      name, phone, personalEmail, companyName, companyEmail,
+      linkedinUrl, socialMediaUrl, source, notes, assignedToId
+    } = req.body;
+
+    const updated = await prisma.lead.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(phone && { phone }),
+        ...(personalEmail !== undefined && { personalEmail }),
+        ...(companyName !== undefined && { companyName }),
+        ...(companyEmail !== undefined && { companyEmail }),
+        ...(linkedinUrl !== undefined && { linkedinUrl }),
+        ...(socialMediaUrl !== undefined && { socialMediaUrl }),
+        ...(source && { source }),
+        ...(notes !== undefined && { notes }),
+        ...(assignedToId && { assignedToId })
+      }
+    });
+
+    return res.json(updated);
+  } catch (error) {
+    console.error('Error updating lead:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   PUT /api/leads/:id/stage
-// @desc    Update lead stage (with strict validation)
 router.put('/:id/stage', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { stage } = req.body;
-
-    if (!stage) {
-      return res.status(400).json({ message: 'Stage is required' });
+    const hasAccess = await checkLeadAccess(id, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this lead record' });
     }
 
-    const lead = await prisma.lead.findUnique({
-      where: { id },
-      include: { client: true }
-    });
+    const { stage, lossReason } = req.body;
 
-    if (!lead) {
-      return res.status(404).json({ message: 'Lead not found' });
-    }
+    if (!stage) return res.status(400).json({ message: 'Stage is required' });
+
+    const lead = await prisma.lead.findUnique({ where: { id }, include: { client: true } });
+    if (!lead) return res.status(404).json({ message: 'Lead not found' });
 
     const currentStage = lead.stage;
+    if (currentStage === stage) return res.json(lead);
 
-    // Strict Stage transition verification
-    if (currentStage === stage) {
-      return res.json(lead);
+    // WIN is final — cannot go backwards once won
+    if (currentStage === 'WIN') {
+      return res.status(400).json({ message: 'Cannot change stage. Deal is Won and client has been created.' });
     }
 
-    // Payment Completed is final stage, cannot transition out of it
-    if (currentStage === 'PAYMENT_COMPLETED') {
-      return res.status(400).json({ message: 'Cannot change stage. Deal is closed and billing is active.' });
-    }
-
+    // LOSS can be re-opened to any stage (revive the lead)
     const isCurrentInFlow = STAGE_ORDER[currentStage] !== undefined;
     const isTargetInFlow = STAGE_ORDER[stage] !== undefined;
 
-    // Enforce flow rule if both are in standard flow:
-    if (isCurrentInFlow && isTargetInFlow) {
+    if (currentStage !== 'LOSS' && isCurrentInFlow && isTargetInFlow) {
       const currentIdx = STAGE_ORDER[currentStage];
       const targetIdx = STAGE_ORDER[stage];
 
       if (targetIdx < currentIdx) {
-        return res.status(400).json({ message: `Cannot go backwards in sales funnel from ${currentStage} to ${stage}` });
+        return res.status(400).json({ message: `Cannot go backwards in pipeline from ${currentStage} to ${stage}` });
       }
-
       if (targetIdx - currentIdx > 1) {
-        return res.status(400).json({ message: `Cannot skip stages. Must go sequentially (e.g. from ${currentStage} to ${Object.keys(STAGE_ORDER).find(k => STAGE_ORDER[k] === currentIdx + 1)})` });
+        const nextStageName = Object.keys(STAGE_ORDER).find(k => STAGE_ORDER[k] === currentIdx + 1);
+        return res.status(400).json({ message: `Cannot skip stages. Next stage must be ${nextStageName}` });
       }
     }
 
-    // Update lead
-    const updatedLead = await prisma.lead.update({
-      where: { id },
-      data: { stage }
-    });
+    // Require lossReason for LOSS
+    if (stage === 'LOSS' && !lossReason) {
+      return res.status(400).json({ message: 'Loss reason is required when marking a lead as Lost' });
+    }
 
-    // Create STAGE_CHANGE activity logs
-    let description = `${currentStage} → ${stage}`;
-    
-    // Auto-create client on PAYMENT_COMPLETED
-    if (stage === 'PAYMENT_COMPLETED' && !lead.client) {
-      // Find an Account Manager to assign handoff to (defaulting to the seeded AM User, or anyone with role ACCOUNT_MANAGER)
-      const amUser = await prisma.user.findFirst({
-        where: { role: 'ACCOUNT_MANAGER' }
-      });
+    const updateData = { stage };
+    if (stage === 'LOSS') updateData.lossReason = lossReason;
+
+    const updatedLead = await prisma.lead.update({ where: { id }, data: updateData });
+
+    // Auto-create client on WIN
+    if (stage === 'WIN' && !lead.client) {
+      const amUser = await prisma.user.findFirst({ where: { role: 'ACCOUNT_MANAGER' } });
       const amUserId = amUser ? amUser.id : req.user.id;
 
-      // Create Client
       const client = await prisma.client.create({
         data: {
           leadId: lead.id,
-          companyName: lead.company || `${lead.name} Corp`,
+          companyName: lead.companyName || `${lead.name} Corp`,
           contactName: lead.name,
           phone: lead.phone,
-          email: lead.email || `${lead.name.toLowerCase().replace(/ /g, '')}@example.com`,
+          email: lead.personalEmail || lead.companyEmail || `${lead.name.toLowerCase().replace(/ /g, '')}@example.com`,
           state: 'Maharashtra',
           amcStartDate: new Date(),
           amcEndDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1))
@@ -329,40 +327,32 @@ router.put('/:id/stage', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
       });
 
       const now = new Date();
-
-      // Create Handoff Ticket with SLA deadlines (48h meeting, 5d onboarding)
       await prisma.handoff.create({
         data: {
-          clientId: client.id,
-          accountManagerId: amUserId,
-          status: 'PENDING',
+          clientId: client.id, accountManagerId: amUserId, status: 'PENDING',
           slaDeadline: new Date(now.getTime() + 48 * 60 * 60 * 1000),
           onboardingDeadline: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000)
         }
       });
 
-      // Create Commitment window (60 days)
       await prisma.commitment.create({
         data: {
-          clientId: client.id,
-          agentCount: 0,
-          talkTimeTarget: 0,
-          revenueCommitment: 0.0,
+          clientId: client.id, agentCount: 0, talkTimeTarget: 0, revenueCommitment: 0.0,
           windowStart: now,
           windowEnd: new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000),
-          actualTalkTime: 0,
-          actualRevenue: 0.0
+          actualTalkTime: 0, actualRevenue: 0.0
         }
       });
     }
 
+    const description = stage === 'LOSS'
+      ? `${currentStage} → LOSS ❌ | Reason: ${lossReason}`
+      : stage === 'WIN'
+      ? `${currentStage} → WIN 🎉 | Client account created`
+      : `${currentStage} → ${stage}`;
+
     await prisma.leadActivity.create({
-      data: {
-        leadId: id,
-        userId: req.user.id,
-        type: 'STAGE_CHANGE',
-        description
-      }
+      data: { leadId: id, userId: req.user.id, type: 'STAGE_CHANGE', description }
     });
 
     return res.json(updatedLead);
@@ -373,87 +363,402 @@ router.put('/:id/stage', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER',
 });
 
 // @route   POST /api/leads/:id/note
-// @desc    Add note activity to lead
 router.post('/:id/note', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { description } = req.body;
-
-    if (!description) {
-      return res.status(400).json({ message: 'Note content is required' });
+    const hasAccess = await checkLeadAccess(id, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this lead record' });
     }
 
-    const activity = await prisma.leadActivity.create({
-      data: {
-        leadId: id,
-        userId: req.user.id,
-        type: 'NOTE',
-        description
-      },
-      include: {
-        user: {
-          select: { name: true }
-        }
-      }
-    });
+    const { description } = req.body;
+    if (!description) return res.status(400).json({ message: 'Note content is required' });
 
+    const activity = await prisma.leadActivity.create({
+      data: { leadId: id, userId: req.user.id, type: 'NOTE', description },
+      include: { user: { select: { id: true, name: true } } }
+    });
     return res.status(201).json(activity);
   } catch (error) {
-    console.error('Error logging note:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 });
 
 // @route   POST /api/leads/:id/call
-// @desc    Log call activity to lead & sync to Commitment talk time
+// @desc    Log call/meeting activity with meetingType
 router.post('/:id/call', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { duration, description } = req.body; // duration in minutes
+    const hasAccess = await checkLeadAccess(id, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this lead record' });
+    }
+
+    const { duration, description, meetingType } = req.body;
 
     if (!description || duration === undefined) {
-      return res.status(400).json({ message: 'Description and duration (in minutes) are required' });
+      return res.status(400).json({ message: 'Description and duration are required' });
     }
 
     const durationMins = parseInt(duration);
     const durationSecs = durationMins * 60;
 
+    const meetingLabel = {
+      'PHONE_CALL': '📞 Phone Call',
+      'ONLINE_MEETING': '💻 Online Meeting',
+      'FACE_TO_FACE': '🤝 Face-to-Face',
+      'OFFICE_VISIT': '🏢 Office Visit',
+      'EMAIL_SENT': '📧 Email Sent',
+      'WHATSAPP_MSG': '💬 WhatsApp'
+    }[meetingType] || '📞 Call';
+
     const activity = await prisma.leadActivity.create({
       data: {
-        leadId: id,
-        userId: req.user.id,
-        type: 'CALL',
-        description: `${description} (${durationMins} min call)`,
+        leadId: id, userId: req.user.id, type: 'CALL',
+        meetingType: meetingType || 'PHONE_CALL',
+        description: `${meetingLabel} — ${description} (${durationMins} min)`,
         callDuration: durationSecs
       },
-      include: {
-        user: {
-          select: { name: true }
-        }
-      }
+      include: { user: { select: { id: true, name: true } } }
     });
 
-    // If lead has client, update active commitment actualTalkTime
+    // Update commitment talk time if client exists
     const lead = await prisma.lead.findUnique({
       where: { id },
       include: { client: { include: { commitment: true } } }
     });
-
     if (lead?.client?.commitment) {
-      const commitment = lead.client.commitment;
       await prisma.commitment.update({
-        where: { id: commitment.id },
-        data: {
-          actualTalkTime: commitment.actualTalkTime + durationMins
-        }
+        where: { id: lead.client.commitment.id },
+        data: { actualTalkTime: lead.client.commitment.actualTalkTime + durationMins }
       });
     }
 
     return res.status(201).json(activity);
   } catch (error) {
-    console.error('Error logging call:', error);
     return res.status(500).json({ message: 'Server error' });
   }
+});
+
+// @route   POST /api/leads/:id/email-log
+// @desc    Log manual email activity
+router.post('/:id/email-log', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const hasAccess = await checkLeadAccess(id, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this lead record' });
+    }
+
+    const { subject, body, direction, toEmail } = req.body;
+    if (!subject || !body) return res.status(400).json({ message: 'Subject and body are required' });
+
+    const dirLabel = direction === 'RECEIVED' ? 'Received from' : 'Sent to';
+    const activity = await prisma.leadActivity.create({
+      data: {
+        leadId: id, userId: req.user.id, type: 'EMAIL',
+        meetingType: direction === 'RECEIVED' ? 'EMAIL_RECEIVED' : 'EMAIL_SENT',
+        description: JSON.stringify({ subject, body, direction: direction || 'SENT', toEmail })
+      },
+      include: { user: { select: { id: true, name: true } } }
+    });
+    return res.status(201).json(activity);
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/leads/:id/whatsapp-log
+// @desc    Log manual WhatsApp message
+router.post('/:id/whatsapp-log', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const hasAccess = await checkLeadAccess(id, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this lead record' });
+    }
+
+    const { message, direction } = req.body;
+    if (!message) return res.status(400).json({ message: 'Message is required' });
+
+    const activity = await prisma.leadActivity.create({
+      data: {
+        leadId: id, userId: req.user.id, type: 'WHATSAPP',
+        meetingType: 'WHATSAPP_MSG',
+        description: JSON.stringify({ message, direction: direction || 'SENT' })
+      },
+      include: { user: { select: { id: true, name: true } } }
+    });
+    return res.status(201).json(activity);
+  } catch (error) {
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Helper: simple vanilla CSV parser
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/);
+  if (lines.length === 0) return [];
+  
+  // Clean headers (remove BOM if present, trim)
+  const headers = lines[0]
+    .replace(/^\uFEFF/, '')
+    .split(',')
+    .map(h => h.trim().replace(/^["']|["']$/g, ''));
+  
+  const results = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let c = 0; c < line.length; c++) {
+      const char = line[c];
+      if (char === '"' || char === "'") {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        values.push(current.trim().replace(/^["']|["']$/g, ''));
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim().replace(/^["']|["']$/g, ''));
+    
+    const rowObj = {};
+    headers.forEach((h, idx) => {
+      rowObj[h] = values[idx] || '';
+    });
+    results.push({ rowNumber: i + 1, data: rowObj });
+  }
+  return results;
+}
+
+// In-memory Job Tracker for Async Imports
+const importJobs = new Map();
+
+async function processImportJob(jobId, parsedRows, overwrite, userId, defaultAssigneeId) {
+  const job = importJobs.get(jobId);
+  if (!job) return;
+
+  let imported = 0;
+  let updated = 0;
+  let duplicates = 0;
+  let failed = 0;
+  const details = [];
+
+  const total = parsedRows.length;
+
+  for (let i = 0; i < total; i++) {
+    const row = parsedRows[i];
+    const { rowNumber, data } = row;
+    const { name, phone, personalEmail, companyName, companyEmail, linkedinUrl, socialMediaUrl, source, notes, assignedToId } = data;
+
+    if (!name || !phone) {
+      failed++;
+      details.push({
+        row: rowNumber,
+        status: 'failed',
+        message: 'Missing mandatory fields: Name and Phone are required.'
+      });
+      job.progress = Math.round(((i + 1) / total) * 100);
+      job.summary = { total, imported, updated, duplicates, failed };
+      job.details = [...details];
+      importJobs.set(jobId, job);
+      continue;
+    }
+
+    // Check duplicate in database
+    let existing = null;
+    try {
+      existing = await prisma.lead.findFirst({
+        where: {
+          OR: [
+            { phone: phone.trim() },
+            ...(personalEmail?.trim() ? [{ personalEmail: personalEmail.trim() }] : [])
+          ]
+        }
+      });
+    } catch (err) {
+      failed++;
+      details.push({
+        row: rowNumber,
+        status: 'failed',
+        message: 'Database query error during lookup.'
+      });
+      job.progress = Math.round(((i + 1) / total) * 100);
+      job.summary = { total, imported, updated, duplicates, failed };
+      job.details = [...details];
+      importJobs.set(jobId, job);
+      continue;
+    }
+
+    if (existing) {
+      if (overwrite) {
+        try {
+          const updatedLead = await prisma.lead.update({
+            where: { id: existing.id },
+            data: {
+              name: name.trim(),
+              personalEmail: personalEmail?.trim() || existing.personalEmail,
+              companyName: companyName?.trim() || existing.companyName,
+              companyEmail: companyEmail?.trim() || existing.companyEmail,
+              linkedinUrl: linkedinUrl?.trim() || existing.linkedinUrl,
+              socialMediaUrl: socialMediaUrl?.trim() || existing.socialMediaUrl,
+              source: source?.trim() || existing.source,
+              notes: notes?.trim() || existing.notes,
+              assignedToId: assignedToId?.trim() || existing.assignedToId || defaultAssigneeId
+            }
+          });
+
+          await prisma.leadActivity.create({
+            data: {
+              leadId: updatedLead.id,
+              userId: userId,
+              type: 'NOTE',
+              description: 'Lead details updated via bulk CSV import (overwrite enabled)'
+            }
+          });
+
+          updated++;
+        } catch (err) {
+          failed++;
+          details.push({
+            row: rowNumber,
+            status: 'failed',
+            message: err.message || 'Database error updating lead.'
+          });
+        }
+      } else {
+        duplicates++;
+        details.push({
+          row: rowNumber,
+          status: 'skipped',
+          message: `Lead with phone "${phone}" or email "${personalEmail || ''}" already exists.`
+        });
+      }
+    } else {
+      // Create new lead
+      try {
+        const newLead = await prisma.lead.create({
+          data: {
+            name: name.trim(),
+            phone: phone.trim(),
+            personalEmail: personalEmail?.trim() || null,
+            companyName: companyName?.trim() || null,
+            companyEmail: companyEmail?.trim() || null,
+            linkedinUrl: linkedinUrl?.trim() || null,
+            socialMediaUrl: socialMediaUrl?.trim() || null,
+            source: source?.trim() || 'Bulk Import',
+            notes: notes?.trim() || null,
+            assignedToId: assignedToId?.trim() || defaultAssigneeId,
+            stage: 'DISCOVERY_CALL'
+          }
+        });
+
+        await prisma.leadActivity.create({
+          data: {
+            leadId: newLead.id,
+            userId: userId,
+            type: 'STAGE_CHANGE',
+            description: 'Lead created via bulk CSV import'
+          }
+        });
+
+        imported++;
+      } catch (err) {
+        failed++;
+        details.push({
+          row: rowNumber,
+          status: 'failed',
+          message: err.message || 'Database error creating lead.'
+        });
+      }
+    }
+
+    // Update progress
+    job.progress = Math.round(((i + 1) / total) * 100);
+    job.summary = { total, imported, updated, duplicates, failed };
+    job.details = [...details];
+    importJobs.set(jobId, job);
+  }
+
+  job.status = 'completed';
+  importJobs.set(jobId, job);
+}
+
+// @route   POST /api/leads/bulk-upload
+// @desc    Bulk upload leads via CSV file (Asynchronous)
+router.post('/bulk-upload', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const overwrite = req.body.overwrite === 'true';
+    const csvText = req.file.buffer.toString('utf-8');
+    const parsedRows = parseCSV(csvText);
+
+    if (parsedRows.length === 0) {
+      return res.status(400).json({ message: 'CSV file is empty or invalid' });
+    }
+
+    const jobId = 'job_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+    
+    importJobs.set(jobId, {
+      id: jobId,
+      status: 'processing',
+      progress: 0,
+      summary: {
+        total: parsedRows.length,
+        imported: 0,
+        updated: 0,
+        duplicates: 0,
+        failed: 0
+      },
+      details: []
+    });
+
+    // Start background processing
+    processImportJob(jobId, parsedRows, overwrite, req.user.id, req.user.id).catch(err => {
+      console.error(`Error in processImportJob ${jobId}:`, err);
+      const job = importJobs.get(jobId);
+      if (job) {
+        job.status = 'failed';
+        job.details.push({
+          row: 0,
+          status: 'failed',
+          message: err.message || 'Fatal error processing bulk import.'
+        });
+        importJobs.set(jobId, job);
+      }
+    });
+
+    return res.status(202).json({
+      success: true,
+      jobId,
+      message: 'Bulk import task started successfully.'
+    });
+  } catch (error) {
+    console.error('Error initiating bulk upload:', error);
+    return res.status(500).json({ message: 'Server error during bulk import' });
+  }
+});
+
+// @route   GET /api/leads/bulk-upload/status/:jobId
+// @desc    Check status of bulk import job
+router.get('/bulk-upload/status/:jobId', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
+  const { jobId } = req.params;
+  const job = importJobs.get(jobId);
+  
+  if (!job) {
+    return res.status(404).json({ message: 'Import job not found' });
+  }
+  
+  return res.json(job);
 });
 
 export default router;

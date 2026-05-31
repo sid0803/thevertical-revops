@@ -1,7 +1,7 @@
 // backend/src/routes/billing.js
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken, getAccessibleUserIds, checkLeadAccess } from '../middleware/auth.js';
 import { requireRoles } from '../middleware/rbac.js';
 
 const router = express.Router();
@@ -64,10 +64,23 @@ async function syncInvoiceTotals(invoiceId) {
 // @desc    Get all invoices with query filters
 router.get('/invoices', verifyToken, async (req, res) => {
   try {
+    const userIds = await getAccessibleUserIds(req.user);
+    let whereClause = {};
+    if (userIds !== null) {
+      whereClause = {
+        client: {
+          lead: {
+            assignedToId: { in: userIds }
+          }
+        }
+      };
+    }
+
     const invoices = await prisma.invoice.findMany({
+      where: whereClause,
       include: {
         client: {
-          select: { id: true, companyName: true, contactName: true }
+          select: { id: true, companyName: true, contactName: true, leadId: true }
         },
         slabs: true
       },
@@ -107,6 +120,11 @@ router.post('/invoices', verifyToken, requireRoles('SUPER_ADMIN', 'FINANCE'), as
     const client = await prisma.client.findUnique({ where: { id: clientId } });
     if (!client) {
       return res.status(404).json({ message: 'Client not found' });
+    }
+
+    const hasAccess = await checkLeadAccess(client.leadId, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this client/lead record' });
     }
 
     const base = parseFloat(baseAmount);
@@ -194,7 +212,7 @@ router.get('/invoices/:id', verifyToken, async (req, res) => {
       where: { id },
       include: {
         client: {
-          select: { id: true, companyName: true, contactName: true, phone: true, email: true }
+          select: { id: true, companyName: true, contactName: true, phone: true, email: true, leadId: true }
         },
         slabs: { orderBy: { slabNumber: 'asc' } }
       }
@@ -202,6 +220,11 @@ router.get('/invoices/:id', verifyToken, async (req, res) => {
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    const hasAccess = await checkLeadAccess(invoice.client.leadId, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this invoice record' });
     }
 
     return res.json(invoice);
@@ -224,11 +247,16 @@ router.put('/invoices/:id/slabs', verifyToken, requireRoles('SUPER_ADMIN', 'FINA
 
     const invoice = await prisma.invoice.findUnique({
       where: { id },
-      include: { slabs: true }
+      include: { slabs: true, client: true }
     });
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    const hasAccess = await checkLeadAccess(invoice.client.leadId, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this invoice record' });
     }
 
     // Check if any paid slabs are being deleted or edited
@@ -307,11 +335,16 @@ router.post('/invoices/:id/slabs/:slabId/pay', verifyToken, requireRoles('SUPER_
 
     const invoice = await prisma.invoice.findUnique({
       where: { id },
-      include: { slabs: true }
+      include: { slabs: true, client: true }
     });
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    const hasAccess = await checkLeadAccess(invoice.client.leadId, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this invoice record' });
     }
 
     const slab = invoice.slabs.find(s => s.id === slabId);
@@ -354,11 +387,16 @@ router.post('/invoices/:id/slabs/add', verifyToken, requireRoles('SUPER_ADMIN', 
 
     const invoice = await prisma.invoice.findUnique({
       where: { id },
-      include: { slabs: true }
+      include: { slabs: true, client: true }
     });
 
     if (!invoice) {
       return res.status(404).json({ message: 'Invoice not found' });
+    }
+
+    const hasAccess = await checkLeadAccess(invoice.client.leadId, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this invoice record' });
     }
 
     const total = invoice.totalAmount;
@@ -408,11 +446,17 @@ router.delete('/invoices/:id/slabs/:slabId', verifyToken, requireRoles('SUPER_AD
     const { id, slabId } = req.params;
 
     const slab = await prisma.paymentSlab.findUnique({
-      where: { id: slabId }
+      where: { id: slabId },
+      include: { invoice: { include: { client: true } } }
     });
 
     if (!slab) {
       return res.status(404).json({ message: 'Slab not found' });
+    }
+
+    const hasAccess = await checkLeadAccess(slab.invoice.client.leadId, req.user);
+    if (!hasAccess) {
+      return res.status(403).json({ message: 'Access denied to this invoice record' });
     }
 
     // Verify this slab actually belongs to the given invoice

@@ -1,7 +1,7 @@
 // backend/src/routes/proposals.js
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken, getAccessibleUserIds, checkLeadAccess } from '../middleware/auth.js';
 import { requireRoles } from '../middleware/rbac.js';
 
 const router = express.Router();
@@ -57,7 +57,17 @@ function calculateProposalTotals(lineItems, gstRate) {
 // @desc    Get all proposals with client info
 router.get('/', verifyToken, async (req, res) => {
   try {
+    const userIds = await getAccessibleUserIds(req.user);
+    let whereClause = {};
+    if (userIds !== null) {
+      whereClause.OR = [
+        { clientId: null },
+        { client: { lead: { assignedToId: { in: userIds } } } }
+      ];
+    }
+
     const proposals = await prisma.proposal.findMany({
+      where: whereClause,
       include: {
         client: {
           select: { id: true, companyName: true, contactName: true }
@@ -92,6 +102,13 @@ router.get('/:id', verifyToken, async (req, res) => {
       return res.status(404).json({ message: 'Proposal not found' });
     }
 
+    if (proposal.clientId) {
+      const hasAccess = await checkLeadAccess(proposal.client.leadId, req.user);
+      if (!hasAccess) {
+        return res.status(403).json({ message: 'Access denied to this proposal record' });
+      }
+    }
+
     return res.json(proposal);
   } catch (error) {
     console.error('Error fetching proposal detail:', error);
@@ -117,7 +134,13 @@ router.post('/', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM_LEADE
     if (clientId) {
       const clientObj = await prisma.client.findUnique({ where: { id: clientId } });
       if (clientObj) {
+        const hasAccess = await checkLeadAccess(clientObj.leadId, req.user);
+        if (!hasAccess) {
+          return res.status(403).json({ message: 'Access denied to this client/lead record' });
+        }
         finalClientName = clientObj.companyName;
+      } else {
+        return res.status(400).json({ message: 'Client not found' });
       }
     }
 
@@ -205,11 +228,18 @@ router.put('/:id', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM_LEA
 
     const existingProposal = await prisma.proposal.findUnique({
       where: { id },
-      include: { lineItems: true }
+      include: { lineItems: true, client: true }
     });
 
     if (!existingProposal) {
       return res.status(404).json({ message: 'Proposal not found' });
+    }
+
+    if (existingProposal.clientId && existingProposal.client) {
+      const hasAccess = await checkLeadAccess(existingProposal.client.leadId, req.user);
+      if (!hasAccess) {
+        return res.status(403).json({ message: 'Access denied to this proposal record' });
+      }
     }
 
     if (existingProposal.status === 'ACCEPTED') {
@@ -220,7 +250,13 @@ router.put('/:id', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM_LEA
     if (clientId) {
       const clientObj = await prisma.client.findUnique({ where: { id: clientId } });
       if (clientObj) {
+        const hasAccess = await checkLeadAccess(clientObj.leadId, req.user);
+        if (!hasAccess) {
+          return res.status(403).json({ message: 'Access denied to this client/lead record' });
+        }
         finalClientName = clientObj.companyName;
+      } else {
+        return res.status(400).json({ message: 'Client not found' });
       }
     }
 
@@ -300,10 +336,20 @@ router.post('/:id/send', verifyToken, async (req, res) => {
     if (id === 'new' || id.length < 10) {
       return res.status(400).json({ message: 'Invalid proposal ID format' });
     }
-    const proposal = await prisma.proposal.findUnique({ where: { id } });
+    const proposal = await prisma.proposal.findUnique({
+      where: { id },
+      include: { client: true }
+    });
 
     if (!proposal) {
       return res.status(404).json({ message: 'Proposal not found' });
+    }
+
+    if (proposal.clientId && proposal.client) {
+      const hasAccess = await checkLeadAccess(proposal.client.leadId, req.user);
+      if (!hasAccess) {
+        return res.status(403).json({ message: 'Access denied to this proposal record' });
+      }
     }
 
     const updated = await prisma.proposal.update({
@@ -333,6 +379,13 @@ router.post('/:id/convert', verifyToken, requireRoles('SUPER_ADMIN', 'FINANCE', 
 
     if (!proposal) {
       return res.status(404).json({ message: 'Proposal not found' });
+    }
+
+    if (proposal.clientId && proposal.client) {
+      const hasAccess = await checkLeadAccess(proposal.client.leadId, req.user);
+      if (!hasAccess) {
+        return res.status(403).json({ message: 'Access denied to this proposal record' });
+      }
     }
 
     if (!proposal.clientId) {

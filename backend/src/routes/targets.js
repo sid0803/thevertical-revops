@@ -168,7 +168,7 @@ router.get('/progress', verifyToken, async (req, res) => {
     const convertedLeadsCount = await prisma.lead.count({
       where: {
         assignedToId: userId,
-        stage: 'PAYMENT_COMPLETED',
+        stage: 'WIN',
         updatedAt: {
           gte: startDate,
           lte: endDate
@@ -270,7 +270,7 @@ router.get('/team', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM_LE
         const convertedLeadsCount = await prisma.lead.count({
           where: {
             assignedToId: rep.id,
-            stage: 'PAYMENT_COMPLETED',
+            stage: 'WIN',
             updatedAt: { gte: startDate, lte: endDate }
           }
         });

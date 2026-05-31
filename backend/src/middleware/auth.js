@@ -40,3 +40,35 @@ export const verifyToken = async (req, res, next) => {
     return res.status(401).json({ message: 'Invalid or expired token' });
   }
 };
+
+export async function getAccessibleUserIds(user) {
+  if (['SUPER_ADMIN', 'MANAGER', 'FINANCE', 'ACCOUNT_MANAGER'].includes(user.role)) {
+    return null; // Can see everything
+  }
+  if (user.role === 'TEAM_LEADER') {
+    const members = await prisma.user.findMany({
+      where: { teamLeaderId: user.id },
+      select: { id: true }
+    });
+    return [...members.map(m => m.id), user.id];
+  }
+  if (user.role === 'SALES_EXEC') {
+    return [user.id];
+  }
+  return [];
+}
+
+export async function checkLeadAccess(leadId, user) {
+  if (!leadId) return false;
+  const userIds = await getAccessibleUserIds(user);
+  if (userIds === null) return true; // Has access to all
+
+  const lead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: { assignedToId: true }
+  });
+  if (!lead) return false;
+
+  return userIds.includes(lead.assignedToId);
+}
+

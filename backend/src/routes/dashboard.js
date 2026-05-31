@@ -39,12 +39,12 @@ router.get('/summary', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM
     });
 
     const leadsByStage = {
-      NEW: 0,
-      INTERESTED: 0,
-      PROPOSAL_SHARED: 0,
-      PAYMENT_COMPLETED: 0,
-      RNR_DNP: 0,
-      NOT_INTERESTED: 0
+      DISCOVERY_CALL: 0,
+      DEMO: 0,
+      PROPOSAL: 0,
+      NEGOTIATION: 0,
+      WIN: 0,
+      LOSS: 0
     };
 
     leads.forEach(l => {
@@ -54,7 +54,7 @@ router.get('/summary', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM
     });
 
     // 2. Calculate conversion %
-    const convertedCount = leadsByStage.PAYMENT_COMPLETED;
+    const convertedCount = leadsByStage.WIN;
     const conversionRate = totalLeads > 0 ? parseFloat(((convertedCount / totalLeads) * 100).toFixed(1)) : 0.0;
 
     // 3. Billing metrics
@@ -112,7 +112,7 @@ router.get('/summary', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM
     const teamPerformance = salesUsers.map(user => {
       const userLeads = user.assignedLeads;
       const total = userLeads.length;
-      const converted = userLeads.filter(l => l.stage === 'PAYMENT_COMPLETED').length;
+      const converted = userLeads.filter(l => l.stage === 'WIN').length;
       
       let revenue = 0;
       userLeads.forEach(l => {
@@ -156,7 +156,7 @@ router.get('/summary', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM
 
     // Insight 1: Lead Scoring (based on talk-time duration)
     const activeLeadsWithCalls = allLeads
-      .filter(l => l.stage !== 'PAYMENT_COMPLETED' && l.stage !== 'NOT_INTERESTED')
+      .filter(l => l.stage !== 'WIN' && l.stage !== 'LOSS')
       .map(l => {
         const totalDuration = l.activities
           .filter(a => a.type === 'CALL')
@@ -186,7 +186,7 @@ router.get('/summary', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM
     }
 
     // Insight 2: Follow-up prompts (leads stuck in PROPOSAL_SHARED)
-    const proposalLeads = allLeads.filter(l => l.stage === 'PROPOSAL_SHARED');
+    const proposalLeads = allLeads.filter(l => l.stage === 'PROPOSAL');
     if (proposalLeads.length > 0) {
       const oldestProposal = proposalLeads.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt))[0];
       const days = Math.max(1, Math.round((new Date() - new Date(oldestProposal.updatedAt)) / (1000 * 60 * 60 * 24)));
@@ -207,7 +207,7 @@ router.get('/summary', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'TEAM
 
     // Insight 3: Deal Risk Alert (Leads stuck in NEW or INTERESTED with no activities)
     const stuckLeads = allLeads.filter(l => 
-      ['NEW', 'INTERESTED'].includes(l.stage) &&
+      ['DISCOVERY_CALL', 'DEMO'].includes(l.stage) &&
       (l.activities.length === 0 || (new Date() - new Date(l.updatedAt)) / (1000 * 60 * 60 * 24) > 3)
     );
 

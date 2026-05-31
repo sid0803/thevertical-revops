@@ -34,6 +34,7 @@ const ProposalBuilder = () => {
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState('DRAFT');
   const [proposalNumber, setProposalNumber] = useState('');
+  const [companyProfile, setCompanyProfile] = useState(null);
 
   // Line items state
   const [lineItems, setLineItems] = useState([
@@ -52,6 +53,7 @@ const ProposalBuilder = () => {
 
   useEffect(() => {
     fetchClients();
+    fetchCompanyProfile();
     if (!isNew) {
       fetchProposalDetails();
     } else {
@@ -65,6 +67,15 @@ const ProposalBuilder = () => {
       setClients(res.data);
     } catch (err) {
       console.error('Error fetching clients:', err);
+    }
+  };
+
+  const fetchCompanyProfile = async () => {
+    try {
+      const res = await api.get('/company-profile');
+      setCompanyProfile(res.data);
+    } catch (err) {
+      console.error('Error fetching company profile:', err);
     }
   };
 
@@ -330,6 +341,42 @@ const ProposalBuilder = () => {
         {/* Left 2 Columns: Details & Line Items */}
         <div className="lg:col-span-2 space-y-6">
           
+          {/* Letterhead Block */}
+          {companyProfile && (
+            <div className="rounded-lg border border-slate-200 bg-white p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 print:border-none print:p-0 border-b-4 border-b-accent-blue/30 pb-6">
+              <div className="flex items-center gap-4">
+                {companyProfile.logoUrl ? (
+                  <img src={companyProfile.logoUrl} alt="Logo" className="h-10 w-auto max-w-[140px] object-contain" />
+                ) : (
+                  <div className="h-10 w-10 rounded-lg bg-accent-blue/10 flex items-center justify-center font-bold text-accent-blue text-lg">
+                    {companyProfile.companyName[0]}
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 print:text-black">{companyProfile.companyName}</h2>
+                  {companyProfile.website && (
+                    <p className="text-[10px] text-slate-500 print:text-slate-700">{companyProfile.website}</p>
+                  )}
+                </div>
+              </div>
+              <div className="text-left sm:text-right text-[10px] text-slate-500 print:text-black space-y-0.5">
+                {companyProfile.address && <p>{companyProfile.address}</p>}
+                {(companyProfile.city || companyProfile.state || companyProfile.pincode) && (
+                  <p>
+                    {[companyProfile.city, companyProfile.state, companyProfile.pincode].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-x-2 sm:justify-end text-[10px]">
+                  {companyProfile.phone && <span>Phone: {companyProfile.phone}</span>}
+                  {companyProfile.email && <span>Email: {companyProfile.email}</span>}
+                </div>
+                {companyProfile.gstNumber && (
+                  <p className="font-semibold text-slate-700 print:text-black">GSTIN: {companyProfile.gstNumber}</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Section: Proposal Details */}
           <div className="rounded-lg border border-slate-200 bg-white p-6 space-y-4 print:border-none print:p-0">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2 print:text-black">

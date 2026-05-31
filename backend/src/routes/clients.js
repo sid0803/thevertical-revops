@@ -1,7 +1,7 @@
 // backend/src/routes/clients.js
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken, getAccessibleUserIds } from '../middleware/auth.js';
 import { requireRoles } from '../middleware/rbac.js';
 
 const router = express.Router();
@@ -11,10 +11,17 @@ const prisma = new PrismaClient();
 // @desc    Get all active client accounts
 router.get('/', verifyToken, requireRoles('SUPER_ADMIN', 'MANAGER', 'ACCOUNT_MANAGER', 'FINANCE', 'SALES_EXEC'), async (req, res) => {
   try {
+    const userIds = await getAccessibleUserIds(req.user);
+    let whereClause = {};
+    if (userIds !== null) {
+      whereClause.lead = { assignedToId: { in: userIds } };
+    }
+
     const clients = await prisma.client.findMany({
+      where: whereClause,
       include: {
         lead: {
-          select: { name: true, phone: true, email: true, stage: true, assignedTo: { select: { name: true } } }
+          select: { name: true, phone: true, personalEmail: true, stage: true, assignedTo: { select: { name: true } } }
         },
         handoff: true,
         commitment: true,
