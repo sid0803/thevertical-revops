@@ -534,6 +534,24 @@ const Leads = () => {
                     </div>
                   )}
 
+                  {/* Bulk Leads Upload Banner/Option */}
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 flex items-center justify-between shadow-sm">
+                    <div className="space-y-0.5">
+                      <h4 className="text-xs font-bold text-blue-900">Have multiple leads?</h4>
+                      <p className="text-[10px] text-slate-500">Import hundreds of leads at once using a CSV template.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsDrawerOpen(false);
+                        setIsUploadModalOpen(true);
+                      }}
+                      className="rounded-lg bg-white border border-blue-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-accent-blue hover:bg-blue-50 hover:text-blue-750 transition active:scale-95 shadow-sm"
+                    >
+                      Bulk Import
+                    </button>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                       Name *
