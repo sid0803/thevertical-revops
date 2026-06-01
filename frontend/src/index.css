@@ -39,3 +39,29 @@
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-slate-400;
 }
+
+/* Print styles to hide sidebar, navbar, and print-hidden elements */
+@media print {
+  aside, header, nav, button, .print\:hidden {
+    display: none !important;
+  }
+  main, .print-full-width {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+  }
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  .pl-64 {
+    padding-left: 0 !important;
+  }
+  .flex-1 {
+    flex: none !important;
+  }
+}

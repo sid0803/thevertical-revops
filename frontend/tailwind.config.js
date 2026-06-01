@@ -12,7 +12,7 @@ export default {
           mid: '#111827',     // dark gray - secondary surface
         },
         accent: {
-          blue: '#2563EB',    // electric blue - buttons, highlights
+          blue: '#0177FF',    // electric blue - buttons, highlights
           cyan: '#06B6D4',    // cyan - hover states, tags
         },
         success: '#10B981',

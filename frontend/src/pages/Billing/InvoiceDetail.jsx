@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
-import { ArrowLeft, Trash2, CheckCircle2, Plus, Save, Calendar, Check, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Trash2, CheckCircle2, Plus, Save, Calendar, Check, AlertCircle, Printer, Download } from 'lucide-react';
 
 const InvoiceDetail = () => {
   const { id } = useParams();
@@ -69,6 +69,29 @@ const InvoiceDetail = () => {
       slab[field] = value;
     }
     setSlabs(updatedSlabs);
+  };
+
+  const handleExportCSV = () => {
+    if (!invoice) return;
+    const headers = ['Slab Number', 'Percentage (%)', 'Amount (INR)', 'Due Date', 'Status', 'Paid At', 'Notes'];
+    const rows = slabs.map(s => [
+      s.slabNumber,
+      `"${s.percentage}%"`,
+      s.amount,
+      s.dueDate ? `"${new Date(s.dueDate).toLocaleDateString('en-IN')}"` : 'N/A',
+      s.isPaid ? 'Paid' : 'Pending',
+      s.paidAt ? `"${new Date(s.paidAt).toLocaleDateString('en-IN')}"` : 'N/A',
+      `"${s.paymentNote || ''}"`
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `invoice_${invoice.invoiceNumber}_slabs.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Save modified slabs array
@@ -215,16 +238,34 @@ const InvoiceDetail = () => {
             <h2 className="text-lg font-bold text-slate-800">Invoice: {invoice.invoiceNumber}</h2>
             <p className="text-xs text-slate-400 mt-0.5">Account: {invoice.client.companyName} | Contact: {invoice.client.contactName}</p>
           </div>
-          {['SUPER_ADMIN', 'FINANCE'].includes(user.role) && (
+          <div className="flex flex-wrap gap-2 self-start sm:self-center print:hidden">
             <button
-              onClick={handleSaveSlabs}
-              disabled={saving}
-              className="flex items-center justify-center space-x-1.5 rounded bg-accent-blue hover:bg-blue-750 text-white px-4 py-2 text-xs font-bold uppercase tracking-wider transition disabled:opacity-50 active:scale-95 self-start sm:self-center"
+              onClick={() => window.print()}
+              className="flex items-center justify-center space-x-1.5 rounded bg-white hover:bg-slate-50 border border-slate-200 text-slate-750 px-3.5 py-2 text-xs font-bold uppercase tracking-wider transition active:scale-95"
             >
-              <Save className="h-4 w-4" />
-              <span>{saving ? 'Saving...' : 'Save Slabs'}</span>
+              <Printer className="h-4 w-4" />
+              <span>Print / Save PDF</span>
             </button>
-          )}
+
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center justify-center space-x-1.5 rounded bg-white hover:bg-slate-50 border border-slate-200 text-slate-750 px-3.5 py-2 text-xs font-bold uppercase tracking-wider transition active:scale-95"
+            >
+              <Download className="h-4 w-4" />
+              <span>Export CSV</span>
+            </button>
+
+            {['SUPER_ADMIN', 'FINANCE'].includes(user.role) && (
+              <button
+                onClick={handleSaveSlabs}
+                disabled={saving}
+                className="flex items-center justify-center space-x-1.5 rounded bg-accent-blue hover:bg-blue-750 text-white px-3.5 py-2 text-xs font-bold uppercase tracking-wider transition disabled:opacity-50 active:scale-95"
+              >
+                <Save className="h-4 w-4" />
+                <span>{saving ? 'Saving...' : 'Save Slabs'}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Amount Summary Row */}

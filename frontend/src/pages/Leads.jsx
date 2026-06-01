@@ -544,8 +544,8 @@ const Leads = () => {
                   )}
 
                   {formWarning && (
-                    <div className="rounded-lg bg-red-50 border border-red-250 p-3 text-xs font-semibold text-red-650 flex items-start space-x-2">
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-red-500 mt-0.5" />
+                    <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-xs font-semibold text-red-700 flex items-start space-x-2 animate-fadeIn">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
                       <span>{formWarning}</span>
                     </div>
                   )}
@@ -599,7 +599,11 @@ const Leads = () => {
                         value={formData.phone}
                         onChange={handleInputChange}
                         placeholder="10-digit mobile number"
-                        className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none focus:border-accent-blue"
+                        className={`w-full rounded-lg border py-2.5 pl-10 pr-4 text-sm text-slate-700 outline-none focus:border-accent-blue transition-colors ${
+                          formWarning && leads.some(l => l.phone === formData.phone)
+                            ? 'border-red-500 bg-red-50/20 focus:border-red-500'
+                            : 'border-slate-200'
+                        }`}
                       />
                     </div>
                   </div>
@@ -617,7 +621,11 @@ const Leads = () => {
                           value={formData.personalEmail}
                           onChange={handleInputChange}
                           placeholder="personal@domain.com"
-                          className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-xs text-slate-700 outline-none focus:border-accent-blue"
+                          className={`w-full rounded-lg border py-2 pl-9 pr-3 text-xs text-slate-700 outline-none focus:border-accent-blue transition-colors ${
+                            formWarning && formData.personalEmail && leads.some(l => l.personalEmail?.toLowerCase() === formData.personalEmail.toLowerCase())
+                              ? 'border-red-500 bg-red-50/20 focus:border-red-500'
+                              : 'border-slate-200'
+                          }`}
                         />
                       </div>
                     </div>

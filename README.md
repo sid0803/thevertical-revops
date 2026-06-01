@@ -163,19 +163,23 @@ sequenceDiagram
 ## ⚡ Core Functional Modules
 
 ### 💼 Leads & Funnel Pipeline Tracker
-*   **Duplicate Prevention**: Real-time telephone number and email validation blocks duplicate entries and alerts the user to link back to the existing record.
+*   **Hard Duplicate Blocking**: Real-time validation checks for duplicate phone numbers and email addresses, highlighting matching inputs in red, showing a hard block error banner, and disabling the submit button on the individual lead drawer. Backend returns a `409 Conflict` state.
 *   **Sequential Stage Locks**: Database-level validation prevents skipped steps, keeping historical metrics pristine.
 *   **Date-Based Funnel Analysis**: Dynamic time-interval segmentation (`Today`, `Yesterday`, `Tomorrow`, `Custom`) for precise pipeline velocity analysis.
 *   **Activity Timeline Audit**: Every call log (with duration in seconds), stage alteration, and text note is tracked with an immutable timestamp.
-*   **Bulk Lead Importer**: Drag-and-drop CSV parser with progress indicators, duplicate overwrite checkbox toggle, and row-level logging dashboard.
+*   **Bulk Lead Importer**: Frontend-side CSV file parsing via PapaParse with 5-row table preview and direct JSON POSTing to `/api/leads/bulk` showing real-time skip metrics.
+*   **Global Search**: Instantly look up leads by name, phone, or company in the top navbar and click to go straight to their timeline, with dynamic stage status badges.
+*   **Prospecting Cadences**: Structured sequential playbooks for follow-ups (Calls, emails, and WhatsApp messages) configured by Team Leaders. Reps can enroll a batch of leads, and their daily Work Queue calculates daily follow-ups automatically.
 
 ### 💰 Billing Ledger & GST Engine
-*   **Tax Compliance**: Supports live tax compilation with automatic CGST + SGST (intra-state) or IGST (inter-state) computation based on the corporate client's regional state code.
-*   **Milestone Slab Automation**: Generates automated payment schedules (such as a default 50% advance / 50% delivery slab structure) linked to invoice generation.
-*   **Status Flow**: Slabs dynamically transit from `DRAFT` $\to$ `PARTIALLY_PAID` $\to$ `PAID` as finance logs receipts.
+*   **Simplified GST Dropdown**: Clean dropdown options for 3%, 12%, and 18% standard GST rates, replacing complex CGST/SGST/IGST regional toggles.
+*   **Interactive 50/50 Milestones Ledger**: Displays default upfront (50%) and delivery (50%) slabs in the invoice detail page. Users can edit percentages, edit amounts (which recalculate inline), add custom slabs dynamically (totaling up to 100%), and mark slabs as Paid.
+*   **Dynamic Proposal Builder**: Interactive quote builder with standard and custom line items. Units (quantities) and cost-per-units compute dynamically. Includes page-view duration analytics and public shareable URLs.
+*   **PDF/Excel Exports**: Dedicated "Print / Save PDF" buttons (formatted with print stylesheets to hide sidebar, navbar, and buttons) and "Export CSV" buttons to download payment slab details as spreadsheet data.
 
 ### 🎯 Sales Targets & SVG Metric Rings
 *   **Team Leader View**: A spreadsheet target builder to assign call frequency, total talk time (minutes), lead conversion counts, and revenue goals per rep per month.
+*   **Actuals Tracking**: Automatically computes and aggregates actual calls, talk-time duration, and invoice revenue from database logs in real time.
 *   **Sales Rep Dashboard**: Visualizes performance indicators through glowing dynamic SVG circular progress rings showing actuals vs. monthly targets.
 
 ---
