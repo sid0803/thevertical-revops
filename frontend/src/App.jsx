@@ -137,6 +137,7 @@ function App() {
 
           <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']}><DashboardLayout title="User Management" /></ProtectedRoute>}>
             <Route path="/users" element={<UserCreation />} />
+            <Route path="/settings/team" element={<UserCreation />} />
           </Route>
 
           {/* Fallback Catch-all Redirect */}

@@ -284,7 +284,7 @@ const LeadDetail = () => {
     if (!newTask.title || !newTask.dueDate) return;
     setTaskLoading(true); setTaskError('');
     try {
-      const res = await api.post('/api/tasks', { leadId: id, ...newTask });
+      const res = await api.post('/tasks', { leadId: id, ...newTask });
       const created = res.data;
       setTasks(prev => [...prev, created]);
       setNewTask({ title: '', description: '', taskType: 'FOLLOW_UP', dueDate: '' });
@@ -304,7 +304,7 @@ const LeadDetail = () => {
 
   const handleCompleteTask = async (taskId) => {
     try {
-      await api.put(`/api/tasks/${taskId}/complete`);
+      await api.put(`/tasks/${taskId}/complete`);
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t));
     } catch (err) { alert(err.response?.data?.message || 'Failed to complete task'); }
   };
@@ -312,7 +312,7 @@ const LeadDetail = () => {
   const handleDeleteTask = async (taskId) => {
     if (!confirm('Delete this task?')) return;
     try {
-      await api.delete(`/api/tasks/${taskId}`);
+      await api.delete(`/tasks/${taskId}`);
       setTasks(prev => prev.filter(t => t.id !== taskId));
     } catch (err) { alert('Failed to delete task'); }
   };
@@ -325,7 +325,7 @@ const LeadDetail = () => {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const res = await api.post(`/api/files/upload/${id}`, formData, {
+      const res = await api.post(`/files/upload/${id}`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setFiles(prev => [res.data, ...prev]);
@@ -342,9 +342,28 @@ const LeadDetail = () => {
   const handleDeleteFile = async (fileId) => {
     if (!confirm('Delete this file?')) return;
     try {
-      await api.delete(`/api/files/${fileId}`);
+      await api.delete(`/files/${fileId}`);
       setFiles(prev => prev.filter(f => f.id !== fileId));
     } catch (err) { alert('Failed to delete file'); }
+  };
+
+  const handleDownloadFile = async (fileId, fileName) => {
+    try {
+      const response = await api.get(`/files/${fileId}/download`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('File download error:', err);
+      alert('Failed to download file.');
+    }
   };
 
   // ── Gmail tab ─────────────────────────────────────────────────────────────
@@ -504,6 +523,29 @@ const LeadDetail = () => {
                   <span>{lead.personalEmail}</span>
                 </div>
               )}
+            </div>
+
+            {/* Quick Actions */}
+            <div className="border-t border-slate-100 pt-4 space-y-2">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quick Connect Actions</h4>
+              <div className="flex gap-2">
+                <a
+                  href={`https://wa.me/91${lead.phone.replace(/\D/g, '')}?text=Hi%20${encodeURIComponent(lead.name)},%20this%20is%20${encodeURIComponent(user?.name || '')}%20from%20TheVertical.ai.%20Just%2520following%2520up%2520on%2520our%2520conversation.`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 flex items-center justify-center space-x-1.5 rounded bg-emerald-600 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-emerald-700 transition text-center"
+                >
+                  <span>WhatsApp</span>
+                </a>
+                {lead.personalEmail && (
+                  <a
+                    href={`mailto:${lead.personalEmail}?subject=Following%20up%20from%20TheVertical.ai&body=Hi%20${encodeURIComponent(lead.name)},`}
+                    className="flex-1 flex items-center justify-center space-x-1.5 rounded bg-blue-600 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-blue-750 transition text-center"
+                  >
+                    <span>Send Email</span>
+                  </a>
+                )}
+              </div>
             </div>
 
             {/* Company Info */}
@@ -919,11 +961,13 @@ const LeadDetail = () => {
                           </p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <a href={`http://localhost:5000/api/files/${file.id}/download`}
-                            className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:text-accent-blue hover:border-accent-blue transition"
-                            title="Download">
+                          <button
+                            onClick={() => handleDownloadFile(file.id, file.fileName)}
+                            className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:text-accent-blue hover:border-accent-blue transition cursor-pointer"
+                            title="Download"
+                          >
                             <Download className="h-3.5 w-3.5" />
-                          </a>
+                          </button>
                           {canEdit && (
                             <button onClick={() => handleDeleteFile(file.id)}
                               className="rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:text-red-500 hover:border-red-200 transition"

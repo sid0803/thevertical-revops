@@ -73,6 +73,24 @@ const Clients = () => {
     }
   };
 
+  const handleToggleChecklistItem = async (handoffId, key, currentValue, handoff) => {
+    if (!['SUPER_ADMIN', 'ACCOUNT_MANAGER'].includes(user.role)) return;
+    try {
+      const payload = {
+        introMailSent: handoff.introMailSent,
+        meetingDone: handoff.meetingDone,
+        onboardingDone: handoff.onboardingDone,
+        activationDone: handoff.activationDone,
+        [key]: !currentValue
+      };
+      await api.put(`/split/handoffs/${handoffId}`, payload);
+      fetchClients();
+    } catch (err) {
+      console.error('Failed to update handoff checklist', err);
+      alert(err.response?.data?.message || 'Failed to update onboarding milestone.');
+    }
+  };
+
   // Helper to calculate days remaining in commitment window
   const getDaysRemaining = (endDateStr) => {
     const end = new Date(endDateStr);
@@ -208,6 +226,69 @@ const Clients = () => {
                             }}
                           />
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Onboarding Checklist Section */}
+                  {client.handoff && (
+                    <div className="border-t border-slate-100 pt-4 space-y-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center space-x-1.5">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        <span>Client Onboarding Milestones</span>
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <label className={`flex items-center space-x-2 p-2 rounded border transition ${
+                          client.handoff.introMailSent ? 'bg-slate-50 border-slate-200 text-slate-400 line-through' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-350'
+                        } ${['SUPER_ADMIN', 'ACCOUNT_MANAGER'].includes(user.role) ? 'cursor-pointer' : 'cursor-default opacity-85'}`}>
+                          <input
+                            type="checkbox"
+                            checked={client.handoff.introMailSent}
+                            disabled={!['SUPER_ADMIN', 'ACCOUNT_MANAGER'].includes(user.role)}
+                            onChange={() => handleToggleChecklistItem(client.handoff.id, 'introMailSent', client.handoff.introMailSent, client.handoff)}
+                            className="rounded border-slate-300 text-accent-blue focus:ring-accent-blue h-4 w-4 cursor-pointer disabled:cursor-default"
+                          />
+                          <span className="font-semibold select-none">Intro Mail Sent</span>
+                        </label>
+
+                        <label className={`flex items-center space-x-2 p-2 rounded border transition ${
+                          client.handoff.meetingDone ? 'bg-slate-50 border-slate-200 text-slate-400 line-through' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        } ${['SUPER_ADMIN', 'ACCOUNT_MANAGER'].includes(user.role) ? 'cursor-pointer' : 'cursor-default opacity-85'}`}>
+                          <input
+                            type="checkbox"
+                            checked={client.handoff.meetingDone}
+                            disabled={!['SUPER_ADMIN', 'ACCOUNT_MANAGER'].includes(user.role)}
+                            onChange={() => handleToggleChecklistItem(client.handoff.id, 'meetingDone', client.handoff.meetingDone, client.handoff)}
+                            className="rounded border-slate-300 text-accent-blue focus:ring-accent-blue h-4 w-4 cursor-pointer disabled:cursor-default"
+                          />
+                          <span className="font-semibold select-none">Kickoff Meeting Done</span>
+                        </label>
+
+                        <label className={`flex items-center space-x-2 p-2 rounded border transition ${
+                          client.handoff.onboardingDone ? 'bg-slate-50 border-slate-200 text-slate-400 line-through' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        } ${['SUPER_ADMIN', 'ACCOUNT_MANAGER'].includes(user.role) ? 'cursor-pointer' : 'cursor-default opacity-85'}`}>
+                          <input
+                            type="checkbox"
+                            checked={client.handoff.onboardingDone}
+                            disabled={!['SUPER_ADMIN', 'ACCOUNT_MANAGER'].includes(user.role)}
+                            onChange={() => handleToggleChecklistItem(client.handoff.id, 'onboardingDone', client.handoff.onboardingDone, client.handoff)}
+                            className="rounded border-slate-300 text-accent-blue focus:ring-accent-blue h-4 w-4 cursor-pointer disabled:cursor-default"
+                          />
+                          <span className="font-semibold select-none">Onboarding Done</span>
+                        </label>
+
+                        <label className={`flex items-center space-x-2 p-2 rounded border transition ${
+                          client.handoff.activationDone ? 'bg-slate-50 border-slate-200 text-slate-400 line-through' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                        } ${['SUPER_ADMIN', 'ACCOUNT_MANAGER'].includes(user.role) ? 'cursor-pointer' : 'cursor-default opacity-85'}`}>
+                          <input
+                            type="checkbox"
+                            checked={client.handoff.activationDone}
+                            disabled={!['SUPER_ADMIN', 'ACCOUNT_MANAGER'].includes(user.role)}
+                            onChange={() => handleToggleChecklistItem(client.handoff.id, 'activationDone', client.handoff.activationDone, client.handoff)}
+                            className="rounded border-slate-300 text-accent-blue focus:ring-accent-blue h-4 w-4 cursor-pointer disabled:cursor-default"
+                          />
+                          <span className="font-semibold select-none">Activation Done</span>
+                        </label>
                       </div>
                     </div>
                   )}

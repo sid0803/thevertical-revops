@@ -764,6 +764,76 @@ async function processImportJob(jobId, parsedRows, overwrite, userId, defaultAss
   importJobs.set(jobId, job);
 }
 
+// @route   POST /api/leads/bulk
+// @desc    Bulk create leads, skipping duplicates row by row
+router.post('/bulk', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), async (req, res) => {
+  try {
+    const { leads } = req.body;
+    if (!Array.isArray(leads) || leads.length === 0) {
+      return res.status(400).json({ message: 'leads array is required' });
+    }
+
+    let imported = 0;
+    let skipped = 0;
+    const skippedDetails = [];
+
+    for (const lead of leads) {
+      const { name, phone, personalEmail, companyName, companyEmail, linkedinUrl, socialMediaUrl, source, notes } = lead;
+
+      if (!name || !phone) {
+        skipped++;
+        skippedDetails.push({ name: name || 'Unknown', phone: phone || 'Unknown', reason: 'Missing name or phone' });
+        continue;
+      }
+
+      // Check duplicates
+      const duplicate = await prisma.lead.findFirst({
+        where: {
+          OR: [
+            { phone: phone.toString().trim() },
+            ...(personalEmail?.trim() ? [{ personalEmail: personalEmail.trim() }] : [])
+          ]
+        }
+      });
+
+      if (duplicate) {
+        skipped++;
+        skippedDetails.push({ name, phone, reason: 'Duplicate record' });
+        continue;
+      }
+
+      // Create new lead
+      await prisma.lead.create({
+        data: {
+          name: name.toString().trim(),
+          phone: phone.toString().trim(),
+          personalEmail: personalEmail?.trim() || null,
+          companyName: companyName?.trim() || null,
+          companyEmail: companyEmail?.trim() || null,
+          linkedinUrl: linkedinUrl?.trim() || null,
+          socialMediaUrl: socialMediaUrl?.trim() || null,
+          source: source?.trim() || 'Bulk Import',
+          notes: notes?.trim() || null,
+          assignedToId: req.user.id,
+          stage: 'DISCOVERY_CALL'
+        }
+      });
+
+      imported++;
+    }
+
+    return res.json({
+      total: leads.length,
+      imported,
+      skipped,
+      skippedDetails
+    });
+  } catch (error) {
+    console.error('Error in bulk import:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   POST /api/leads/bulk-upload
 // @desc    Bulk upload leads via CSV file (Asynchronous)
 router.post('/bulk-upload', verifyToken, requireRoles('SUPER_ADMIN', 'TEAM_LEADER', 'SALES_EXEC'), upload.single('file'), async (req, res) => {

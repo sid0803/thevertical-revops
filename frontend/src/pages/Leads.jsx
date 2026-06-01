@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Search, Filter, Calendar, AlertTriangle, UserPlus, Phone, Mail, FileText, ArrowRight, X, Building } from 'lucide-react';
+import Papa from 'papaparse';
 
 const Linkedin = (props) => (
   <svg
@@ -64,9 +65,36 @@ const Leads = () => {
   const [uploadSummary, setUploadSummary] = useState(null);
   const [uploadError, setUploadError] = useState('');
   const [dragOverUpload, setDragOverUpload] = useState(false);
-  const [overwrite, setOverwrite] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [previewRows, setPreviewRows] = useState([]);
+  const [parsedLeads, setParsedLeads] = useState([]);
   const fileSelectRef = useRef(null);
+
+  const handleFileParse = (file) => {
+    setUploadError('');
+    setUploadSummary(null);
+    setPreviewRows([]);
+    setParsedLeads([]);
+    
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        if (results.errors.length > 0) {
+          console.warn('CSV parsing warnings:', results.errors);
+        }
+        if (results.data.length === 0) {
+          setUploadError('CSV file is empty or invalid.');
+          return;
+        }
+        setParsedLeads(results.data);
+        setPreviewRows(results.data.slice(0, 5));
+      },
+      error: (err) => {
+        setUploadError(`Failed to parse CSV: ${err.message}`);
+      }
+    });
+  };
 
   const handleUploadDrop = (e) => {
     e.preventDefault();
@@ -74,6 +102,7 @@ const Leads = () => {
     const file = e.dataTransfer.files[0];
     if (file && file.name.endsWith('.csv')) {
       setUploadFile(file);
+      handleFileParse(file);
     } else {
       setUploadError('Only CSV files (.csv) are supported');
     }
@@ -81,47 +110,33 @@ const Leads = () => {
 
   const handleUploadSubmit = async (e) => {
     e.preventDefault();
-    if (!uploadFile) return;
+    if (parsedLeads.length === 0) return;
     setUploading(true);
     setUploadError('');
     setUploadSummary(null);
-    setProgress(0);
-
-    const formDataToSend = new FormData();
-    formDataToSend.append('file', uploadFile);
-    formDataToSend.append('overwrite', overwrite ? 'true' : 'false');
+    setProgress(30);
 
     try {
-      const response = await api.post('/leads/bulk-upload', formDataToSend, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      setProgress(60);
+      const response = await api.post('/leads/bulk', { leads: parsedLeads });
+      setProgress(100);
+      setUploadSummary({
+        summary: {
+          total: response.data.total,
+          imported: response.data.imported,
+          updated: 0,
+          duplicates: response.data.skipped,
+          failed: 0
+        },
+        details: response.data.skippedDetails?.map((item, index) => ({
+          row: index + 1,
+          status: 'skipped',
+          message: `${item.name} (${item.phone}): ${item.reason}`
+        })) || []
       });
-      const jobId = response.data.jobId;
-
-      // Start status polling
-      const interval = setInterval(async () => {
-        try {
-          const statusRes = await api.get(`/leads/bulk-upload/status/${jobId}`);
-          const job = statusRes.data;
-          
-          setProgress(job.progress || 0);
-
-          if (job.status === 'completed') {
-            clearInterval(interval);
-            setUploadSummary(job);
-            setUploading(false);
-          } else if (job.status === 'failed') {
-            clearInterval(interval);
-            setUploadError(job.details?.[0]?.message || 'Import failed unexpectedly.');
-            setUploading(false);
-          }
-        } catch (pollErr) {
-          clearInterval(interval);
-          setUploadError('Failed to poll upload status.');
-          setUploading(false);
-        }
-      }, 500);
+      setUploading(false);
     } catch (err) {
-      setUploadError(err.response?.data?.message || 'Failed to start CSV bulk import.');
+      setUploadError(err.response?.data?.message || 'Failed to import CSV.');
       setUploading(false);
     }
   };
@@ -131,8 +146,9 @@ const Leads = () => {
     setUploadFile(null);
     setUploadSummary(null);
     setUploadError('');
-    setOverwrite(false);
     setProgress(0);
+    setPreviewRows([]);
+    setParsedLeads([]);
     fetchLeads(); // Refresh leads pipeline
   };
 
@@ -189,7 +205,7 @@ const Leads = () => {
             (formData.personalEmail && l.personalEmail?.toLowerCase() === formData.personalEmail.toLowerCase())
           );
           if (match) {
-            setFormWarning(`Warning: Lead already exists (ID: ${match.name}, Stage: ${match.stage})`);
+            setFormWarning(`Lead already exists (Name: ${match.name}, Stage: ${match.stage}). Duplicate submission blocked.`);
           } else {
             setFormWarning('');
           }
@@ -528,8 +544,8 @@ const Leads = () => {
                   )}
 
                   {formWarning && (
-                    <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700 flex items-start space-x-2">
-                      <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" />
+                    <div className="rounded-lg bg-red-50 border border-red-250 p-3 text-xs font-semibold text-red-650 flex items-start space-x-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-red-500 mt-0.5" />
                       <span>{formWarning}</span>
                     </div>
                   )}
@@ -737,7 +753,7 @@ const Leads = () => {
                     </button>
                     <button
                       type="submit"
-                      disabled={submitting}
+                      disabled={submitting || !!formWarning}
                       className="flex-1 rounded bg-accent-blue py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-blue-750 transition disabled:opacity-50"
                     >
                       {submitting ? 'Creating...' : 'Create Lead'}
@@ -783,21 +799,37 @@ const Leads = () => {
                     CSV Template (.csv)
                   </button>
                 </div>
-
-                {/* Overwrite duplicates checkbox */}
-                <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200 rounded-lg p-3">
-                  <input
-                    type="checkbox"
-                    id="overwrite-duplicates"
-                    checked={overwrite}
-                    onChange={(e) => setOverwrite(e.target.checked)}
-                    disabled={uploading}
-                    className="h-4 w-4 text-accent-blue focus:ring-accent-blue border-slate-300 rounded cursor-pointer"
-                  />
-                  <label htmlFor="overwrite-duplicates" className="text-xs text-slate-700 font-semibold select-none cursor-pointer">
-                    Update existing records if duplicates are found
-                  </label>
-                </div>
+                {/* Preview Table */}
+                {previewRows.length > 0 && (
+                  <div className="space-y-1.5 animate-fadeIn">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CSV Preview (First 5 Rows)</h4>
+                    <div className="overflow-x-auto border border-slate-200 rounded-lg max-h-[160px] bg-slate-50">
+                      <table className="w-full text-left border-collapse text-[10px] text-slate-500">
+                        <thead className="bg-slate-100 text-[9px] font-bold uppercase text-slate-400 border-b border-slate-200 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-1.5">Name</th>
+                            <th className="px-3 py-1.5">Phone</th>
+                            <th className="px-3 py-1.5">Email</th>
+                            <th className="px-3 py-1.5">Company</th>
+                            <th className="px-3 py-1.5">Source</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {previewRows.map((row, idx) => (
+                            <tr key={idx} className="hover:bg-slate-100/50">
+                              <td className="px-3 py-1.5 font-semibold text-slate-700">{row.name || '-'}</td>
+                              <td className="px-3 py-1.5">{row.phone || '-'}</td>
+                              <td className="px-3 py-1.5 truncate max-w-[120px]">{row.personalEmail || row.companyEmail || '-'}</td>
+                              <td className="px-3 py-1.5">{row.companyName || '-'}</td>
+                              <td className="px-3 py-1.5">{row.source || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-[9px] text-slate-400 italic">Total of {parsedLeads.length} leads detected in file.</p>
+                  </div>
+                )}
 
                 {/* Upload drag & drop / Progress */}
                 {uploading ? (
@@ -832,7 +864,10 @@ const Leads = () => {
                       className="hidden"
                       onChange={(e) => {
                         const f = e.target.files?.[0];
-                        if (f) setUploadFile(f);
+                        if (f) {
+                          setUploadFile(f);
+                          handleFileParse(f);
+                        }
                       }}
                     />
                     {uploadFile ? (
@@ -845,6 +880,8 @@ const Leads = () => {
                           onClick={(e) => {
                             e.stopPropagation();
                             setUploadFile(null);
+                            setPreviewRows([]);
+                            setParsedLeads([]);
                           }}
                           className="text-[10px] text-red-500 font-semibold hover:underline"
                         >
@@ -879,7 +916,7 @@ const Leads = () => {
                   <button
                     type="button"
                     onClick={handleUploadSubmit}
-                    disabled={!uploadFile || uploading}
+                    disabled={parsedLeads.length === 0 || uploading}
                     className="flex-1 rounded-xl bg-accent-blue py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-blue-750 transition disabled:opacity-50"
                   >
                     Start Import

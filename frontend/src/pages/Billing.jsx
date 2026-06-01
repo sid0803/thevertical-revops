@@ -21,8 +21,8 @@ const Billing = () => {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [invoiceData, setInvoiceData] = useState({
     clientId: '',
-    amount: '',
-    gstSlabId: '',
+    baseAmount: '',
+    gstRate: '18',
     dueDate: '',
   });
   const [invoiceError, setInvoiceError] = useState('');
@@ -92,9 +92,14 @@ const Billing = () => {
     setInvoiceSubmitting(true);
 
     try {
-      await api.post('/billing/invoices', invoiceData);
+      await api.post('/billing/invoices', {
+        clientId: invoiceData.clientId,
+        baseAmount: parseFloat(invoiceData.baseAmount),
+        gstRate: parseFloat(invoiceData.gstRate),
+        dueDate: invoiceData.dueDate || null,
+      });
       setIsInvoiceModalOpen(false);
-      setInvoiceData({ clientId: '', amount: '', gstSlabId: '', dueDate: '' });
+      setInvoiceData({ clientId: '', baseAmount: '', gstRate: '18', dueDate: '' });
       fetchInvoices();
     } catch (err) {
       setInvoiceError(err.response?.data?.message || 'Failed to create invoice.');
@@ -141,14 +146,13 @@ const Billing = () => {
 
   // Live GST maths for modal display
   const getSelectedGstDetails = () => {
-    if (!invoiceData.amount || !invoiceData.gstSlabId) return { gstAmount: 0, total: 0, rate: 0, type: '' };
-    const slab = gstSlabs.find(s => s.id === invoiceData.gstSlabId);
-    if (!slab) return { gstAmount: 0, total: 0, rate: 0, type: '' };
+    if (!invoiceData.baseAmount || !invoiceData.gstRate) return { gstAmount: 0, total: 0, rate: 0 };
     
-    const base = parseFloat(invoiceData.amount) || 0;
-    const gstAmount = base * (slab.rate / 100);
+    const base = parseFloat(invoiceData.baseAmount) || 0;
+    const rate = parseFloat(invoiceData.gstRate) || 0;
+    const gstAmount = base * (rate / 100);
     const total = base + gstAmount;
-    return { gstAmount, total, rate: slab.rate, type: slab.type };
+    return { gstAmount, total, rate };
   };
 
   const getStatusBadge = (status) => {
@@ -314,9 +318,8 @@ const Billing = () => {
                       <td className="px-6 py-4 font-bold text-slate-900">{inv.invoiceNumber}</td>
                       <td className="px-6 py-4 font-semibold text-slate-700">{inv.client.companyName}</td>
                       <td className="px-6 py-4">₹{inv.amount.toLocaleString('en-IN')}</td>
-                      <td className="px-6 py-4 text-xs">
-                        <div>{inv.gstRate}%</div>
-                        <div className="text-[10px] text-slate-400">{inv.gstType === 'CGST_SGST' ? 'CGST + SGST' : 'IGST'}</div>
+                      <td className="px-6 py-4 text-xs font-semibold text-slate-700">
+                        {inv.gstRate}% GST
                       </td>
                       <td className="px-6 py-4 font-bold text-slate-800">₹{inv.totalAmount.toLocaleString('en-IN')}</td>
                       <td className="px-6 py-4 text-slate-400">
@@ -393,10 +396,10 @@ const Billing = () => {
                   </label>
                   <input
                     type="number"
-                    name="amount"
+                    name="baseAmount"
                     required
                     min="1"
-                    value={invoiceData.amount}
+                    value={invoiceData.baseAmount}
                     onChange={handleInvoiceInputChange}
                     placeholder="e.g. 100000"
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
@@ -405,19 +408,18 @@ const Billing = () => {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
-                    GST Rate / Slab *
+                    GST Rate *
                   </label>
                   <select
-                    name="gstSlabId"
+                    name="gstRate"
                     required
-                    value={invoiceData.gstSlabId}
+                    value={invoiceData.gstRate}
                     onChange={handleInvoiceInputChange}
                     className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 outline-none focus:border-accent"
                   >
-                    <option value="">Select slab...</option>
-                    {gstSlabs.map(s => (
-                      <option key={s.id} value={s.id}>{s.label} ({s.rate}%)</option>
-                    ))}
+                    <option value="3">3%</option>
+                    <option value="12">12%</option>
+                    <option value="18">18%</option>
                   </select>
                 </div>
               </div>
@@ -436,14 +438,14 @@ const Billing = () => {
               </div>
 
               {/* Dynamic maths breakdown panel */}
-              {invoiceData.amount && invoiceData.gstSlabId && (
+              {invoiceData.baseAmount && (
                 <div className="rounded-lg bg-slate-50 p-4 border border-slate-100 space-y-2 text-xs text-slate-600">
                   <div className="flex justify-between">
                     <span>Base Amount:</span>
-                    <span className="font-semibold text-slate-800">₹{(parseFloat(invoiceData.amount) || 0).toLocaleString('en-IN')}</span>
+                    <span className="font-semibold text-slate-800">₹{(parseFloat(invoiceData.baseAmount) || 0).toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>GST Amount ({gstPreview.rate}% {gstPreview.type === 'CGST_SGST' ? 'CGST+SGST' : 'IGST'}):</span>
+                    <span>GST Amount ({gstPreview.rate}%):</span>
                     <span className="font-semibold text-slate-800">₹{gstPreview.gstAmount.toLocaleString('en-IN')}</span>
                   </div>
                   <div className="flex justify-between border-t border-slate-200 pt-2 text-sm">

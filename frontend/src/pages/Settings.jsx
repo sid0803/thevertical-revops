@@ -1,5 +1,6 @@
 // frontend/src/pages/Settings.jsx
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { Settings, Plus, Percent, RefreshCw, ToggleLeft, ToggleRight, X, ShieldAlert, Building, Globe, Phone, Mail, Image, Save } from 'lucide-react';
@@ -152,13 +153,21 @@ const SettingsPage = () => {
           <h1 className="text-2xl font-bold text-slate-900">Global System Settings</h1>
           <p className="text-sm text-slate-500">Configure tax rates, billing modules, and global workflows</p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center space-x-2 rounded-lg bg-accent px-4 py-2.5 font-semibold text-white shadow-lg shadow-accent/20 hover:bg-accent-dark transition active:scale-95"
-        >
-          <Plus className="h-5 w-5" />
-          <span>Add GST Slab</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/settings/team"
+            className="flex items-center space-x-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-700 shadow-sm hover:bg-slate-50 transition active:scale-95"
+          >
+            <span>Manage Team</span>
+          </Link>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center space-x-2 rounded-lg bg-accent px-4 py-2.5 font-semibold text-white shadow-lg shadow-accent/20 hover:bg-accent-dark transition active:scale-95 text-xs"
+          >
+            <Plus className="h-5 w-5" />
+            <span>Add GST Slab</span>
+          </button>
+        </div>
       </div>
 
       {/* Company Profile Settings Card */}
