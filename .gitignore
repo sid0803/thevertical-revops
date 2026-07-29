@@ -34,3 +34,8 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Resumes & Private Docs
+*RESUME*
+*resume*
+
+
