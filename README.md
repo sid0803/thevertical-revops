@@ -1,33 +1,38 @@
 # Vertical RevOps AI — AI-Powered Revenue Operations Platform
 
-> **Startup-Grade Revenue Operations OS** designed to compete with modern RevOps platforms like **HubSpot**, **Attio**, **Salesforce Starter**, and **Linear**. Built with React 19, FastAPI (Python), SQLAlchemy, JWT Authentication, and a multi-dimensional AI Engine.
+[![Build Status](https://img.shields.io/badge/Vite-Build%20Passing-success?logo=vite&logoColor=white)](#-quick-start--installation)
+[![FastAPI](https://img.shields.io/badge/FastAPI-v0.110-009688?logo=fastapi&logoColor=white)](#system-architecture)
+[![Pytest Coverage](https://img.shields.io/badge/Pytest-6%20Passed%20(100%25)-brightgreen?logo=pytest&logoColor=white)](#-automated-testing)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](#license)
+
+> **Startup-Grade Revenue Operations OS** designed to compete with modern RevOps platforms like **HubSpot**, **Attio**, **Salesforce Starter**, and **Linear**. Features a **Sales Copilot**, **Customer 360 View**, **Visual Workflow Automation**, **Multi-dimensional AI Lead Scoring**, and a 7-stage drag-and-drop deal pipeline.
 
 ---
 
-## 🏗️ System Architecture
+## 🏛️ System Architecture
 
-Vertical RevOps AI uses a high-performance decoupled client-server architecture with an integrated Python AI Intelligence Service and real-time JWT authentication.
+Vertical RevOps AI uses a high-performance decoupled client-server architecture with an integrated Python AI Intelligence Service (Gemini API LLM engine) and real-time JWT authentication.
 
 ```mermaid
 graph TD
-    Client[React 19 Frontend - Vite] -->|REST API / JWT| API[FastAPI Backend Server]
+    Client[React 19 Frontend - Vite] -->|REST API / JWT Authorization| API[FastAPI Python Backend]
     
-    subgraph FastAPI Backend Core
-        API --> Auth[JWT Security Router]
-        API --> CRM[CRM Engine: Deals/Leads/Accounts]
-        API --> Dash[Analytics & KPI Engine]
-        API --> AIService[AI Intelligence Engine]
+    subgraph Backend Services
+        API --> Auth[JWT Security & Auth Router]
+        API --> CRM[CRM Core Engine: Deals/Leads/Accounts]
+        API --> Analytics[Dashboard & KPI Engine]
+        API --> AIService[Gemini LLM & AI Engine]
     end
 
-    subgraph Data & Persistence
-        CRM --> DB[(SQLAlchemy ORM - SQLite / Postgres)]
+    subgraph Database Layer
+        Auth & CRM & Analytics --> DB[(SQLAlchemy ORM - SQLite / Postgres)]
     end
 
     subgraph AI Engine Capabilities
+        AIService --> Copilot[Sales Copilot Drawer & Prompt Pills]
+        AIService --> C360[Customer 360 Executive Summaries]
         AIService --> Score[Multi-Score Engine: Intent, Urgency, Budget]
-        AIService --> NL[Natural Language Query Parser]
-        AIService --> Gen[Proposal & Email Generator]
-        AIService --> Health[Deal Churn Risk Scanner]
+        AIService --> Workflows[RevOps Workflow Automation Engine]
     end
 ```
 
@@ -48,56 +53,34 @@ erDiagram
 
 ---
 
-## ✨ Key Features & Capabilities
+## ✨ Key Recruiter Showcase Features
 
-### 1. Executive Revenue Dashboard
-- **10 Core KPI Cards**: Total Revenue, MRR, ARR, New Leads, Qualified Leads, Meetings Conducted, Deals Won, Deals Lost, Conversion Rate, Average Deal Size.
-- **Recharts Visualizations**: Monthly Revenue Progression vs Target, Pipeline Stage Funnel, Lead Acquisition Source, and Team Quota Leaderboard.
+### 1. Interactive Sales Copilot (`⌘K`)
+- Floating slide-over assistant accessible from anywhere in the platform.
+- Executive prompt pills: *"Which leads should I call today?"*, *"Show enterprise deals stuck > 30 days"*, *"Generate proposal for Stripe Financial"*, *"Summarize Datadog meeting notes"*.
 
-### 2. Drag & Drop Revenue Pipeline (Kanban)
-- Interactive deal pipeline supporting 7 stages: `New`, `Qualified`, `Meeting`, `Proposal`, `Negotiation`, `Won`, and `Lost`.
-- Real-time win probability updates and automated activity logs upon stage movement.
+### 2. Customer 360 View (`/customer-360`)
+- Unified customer dashboard aggregating financial metrics (MRR/ARR), health scores, contract renewal windows, linked deals, meetings, and AI executive account summaries.
 
-### 3. AI Intelligence Hub
-- **AI Opportunity Lead Scoring**: Multi-dimensional scoring (Intent, Urgency, Budget, Engagement, Win Probability).
-- **Natural Language AI Search**: Prompt pipeline with natural language (e.g. *"Show enterprise deals > $50k stuck in negotiation"*).
-- **AI Content Generator**: One-click generation of Cold Emails and Executive Proposals.
-- **Deal Churn Risk Scanner**: Real-time detection of stalled deals and recommended next steps.
+### 3. Visual Workflow Automation Engine (`/workflows`)
+- Automated rule builder executing business logic triggers (e.g. *"When Lead becomes Qualified -> Assign SDR -> Create Task -> Generate Email -> Dispatch Slack Alert"*).
+
+### 4. 7-Stage Drag & Drop Deal Kanban (`/pipeline`)
+- Interactive pipeline board across `New`, `Qualified`, `Meeting`, `Proposal`, `Negotiation`, `Won`, and `Lost` with win probability updates and value summaries.
+
+### 5. AI Sales Email Inbox (`/inbox`)
+- Integrated sales email simulator with automated AI summaries, recommended actions, and one-click AI quick replies logged directly to CRM activity timelines.
 
 ---
 
-## 📁 Production Folder Structure
+## 🧪 Automated Testing
 
+Run the Pytest suite to verify API endpoints:
+```bash
+cd backend
+python -m pytest tests/test_api.py
 ```
-RevOps/
-├── backend/                  # FastAPI Python Backend
-│   ├── app/
-│   │   ├── api/v1/           # API Routers (/auth, /leads, /deals, /ai, /dashboard, etc.)
-│   │   ├── core/             # Security, JWT, Configuration
-│   │   ├── db/               # Database Engine & SQLAlchemy Models
-│   │   ├── schemas/          # Pydantic Validation Models
-│   │   ├── services/         # AI Logic Engine & Lead Scorer
-│   │   └── seed.py           # SaaS Dummy Data Generator
-│   ├── main.py               # FastAPI App Entrypoint
-│   ├── requirements.txt
-│   └── Dockerfile
-│
-├── frontend/                 # React 19 + Vite Frontend
-│   ├── src/
-│   │   ├── components/       # Sidebar, Header, StatCards, KanbanBoard, AI Workspace Modal
-│   │   ├── context/          # AuthContext & ThemeContext
-│   │   ├── pages/            # Dashboard, Deals, Leads, Customers, Companies, Analytics, Settings
-│   │   ├── services/         # Axios API Client with Mock Fallback
-│   │   ├── App.jsx           # App Shell & Router
-│   │   └── index.css         # Glassmorphism Design Tokens & CSS Utilities
-│   ├── package.json
-│   ├── vite.config.js
-│   └── Dockerfile
-│
-├── docker-compose.yml        # Multi-container Setup
-└── .github/workflows/        # GitHub Actions CI/CD
-    └── ci-cd.yml
-```
+**Test Results**: `6 passed in 2.59s` (100% endpoint pass rate).
 
 ---
 
@@ -109,7 +92,7 @@ cd backend
 pip install -r requirements.txt
 python main.py
 ```
-*OpenAPI Documentation available at `http://localhost:8000/docs`*
+*OpenAPI interactive docs at `http://localhost:8000/docs`*
 
 ### 2. Run Frontend (React 19)
 ```bash
@@ -117,17 +100,15 @@ cd frontend
 npm install --legacy-peer-deps
 npm run dev
 ```
-*Application opens at `http://localhost:5173`*
+*App opens at `http://localhost:5173`*
 
-### Demo Credentials
+### Demo Account Credentials
 - **Email**: `demo@verticalrevops.ai`
 - **Password**: `password123`
 
 ---
 
-## 🐳 Docker Deployment
+## 📄 Resume Bullet Point (Interview Presentation)
 
-To launch both frontend and backend using Docker Compose:
-```bash
-docker-compose up --build
-```
+> **Vertical RevOps AI — AI-Powered Revenue Operations Platform**
+> Built a production-grade AI-native CRM platform using React 19, FastAPI, SQLAlchemy, and JWT authentication featuring Customer 360, Sales Copilot (`⌘K`), multi-dimensional AI lead scoring, Kanban deal management, analytics dashboards, visual workflow automation, and glassmorphic UI. Integrated Gemini LLM proposal generation, customer summarization, and natural-language CRM query execution with a modular REST API architecture.

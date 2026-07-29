@@ -9,7 +9,6 @@ export const api = axios.create({
   },
 });
 
-// Attach JWT token to requests if available
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('revops_token');
   if (token) {
@@ -18,7 +17,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Fallback Mock Data Engine if backend offline
 export const mockData = {
   kpis: {
     total_revenue: 1020000.0,
@@ -47,7 +45,7 @@ export const mockData = {
       { stage: 'Qualified', count: 86, value: 1240000 },
       { stage: 'Meeting', count: 48, value: 890000 },
       { stage: 'Proposal', count: 28, value: 650000 },
-      { stage: 'Negotiation', count: 16, "value": 480000 },
+      { stage: 'Negotiation', count: 16, value: 480000 },
       { stage: 'Won', count: 24, value: 1020000 },
     ],
     lead_sources: [
@@ -70,7 +68,7 @@ export const mockData = {
   },
   deals: [
     { id: 1, title: 'Stripe - Enterprise Platform License', company_name: 'Stripe Financial', contact_name: 'Marcus Vance', stage: 'NEGOTIATION', value: 120000, win_probability: 85, health_score: 90, risk_flag: null },
-    { id: 2, title: 'Datadog - AI Sales Intelligence Module', company_name: 'Datadog Cloud', contact_name: 'Sarah Lin', stage: 'PROPOSAL', value: 85000, win_probability: 70, health_score: 82, risk_flag: null },
+    { id: 2, title: 'Datadog - AI Sales Intelligence Module', company_name: 'Datadog Cloud', contact_name: 'Sarah Lin', stage: 'PROPOSAL', value: 85000, win_probability: 70, health_score: 82, risk_flag: 'Proposal Pending Review' },
     { id: 3, title: 'Figma - Commercial Expansion Seat Package', company_name: 'Figma Design', contact_name: 'David Kovacs', stage: 'WON', value: 64000, win_probability: 100, health_score: 98, risk_flag: null },
     { id: 4, title: 'Vercel - Developer RevOps Integration', company_name: 'Vercel Hosting', contact_name: 'Alex Morgan', stage: 'MEETING', value: 45000, win_probability: 55, health_score: 75, risk_flag: null },
     { id: 5, title: 'Snowflake - Global Revenue Operations OS', company_name: 'Snowflake Data', contact_name: 'Rachel Stern', stage: 'QUALIFIED', value: 180000, win_probability: 60, health_score: 88, risk_flag: null },

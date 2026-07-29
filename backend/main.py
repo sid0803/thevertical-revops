@@ -15,7 +15,8 @@ from app.api.v1 import (
     dashboard,
     analytics,
     notifications,
-    ai
+    ai,
+    emails
 )
 
 # Initialize database schema and seed data
@@ -58,6 +59,7 @@ app.include_router(dashboard.router, prefix=f"{settings.API_V1_STR}/dashboard", 
 app.include_router(analytics.router, prefix=f"{settings.API_V1_STR}/analytics", tags=["Analytics"])
 app.include_router(notifications.router, prefix=f"{settings.API_V1_STR}/notifications", tags=["Notifications"])
 app.include_router(ai.router, prefix=f"{settings.API_V1_STR}/ai", tags=["AI"])
+app.include_router(emails.router, prefix=f"{settings.API_V1_STR}/emails", tags=["Emails"])
 
 @app.get("/")
 def root():

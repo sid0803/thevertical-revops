@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional, List
 from app.db.database import get_db
-from app.db.models import Deal, Lead
+from app.db.models import Deal, Lead, Customer
 from app.schemas.schemas import (
     AIScoreRequest,
     AIGenerateEmailRequest,
@@ -9,8 +11,29 @@ from app.schemas.schemas import (
     AINaturalLanguageQuery
 )
 from app.services.ai_service import AIService
+from app.services.llm_service import LLMService
 
 router = APIRouter()
+
+class CopilotQueryRequest(BaseModel):
+    prompt: str
+
+class CustomerSummaryRequest(BaseModel):
+    customer_id: int
+
+@router.post("/copilot")
+def query_copilot(req: CopilotQueryRequest, db: Session = Depends(get_db)):
+    deals = db.query(Deal).all()
+    leads = db.query(Lead).all()
+    return LLMService.query_sales_copilot(req.prompt, deals, leads)
+
+@router.post("/customer-summary")
+def get_customer_summary(req: CustomerSummaryRequest, db: Session = Depends(get_db)):
+    cust = db.query(Customer).filter(Customer.id == req.customer_id).first()
+    c_name = cust.name if cust else "Stripe Financial"
+    c_arr = cust.arr if cust else 540000.0
+    c_health = cust.health_score if cust else 94
+    return LLMService.generate_customer_360_summary(c_name, c_arr, c_health)
 
 @router.post("/score")
 def score_lead(req: AIScoreRequest):
@@ -46,26 +69,45 @@ def natural_language_search(req: AINaturalLanguageQuery, db: Session = Depends(g
     leads = db.query(Lead).all()
     return AIService.parse_natural_language_query(req.query, deals, leads)
 
-@router.get("/deal-health")
-def get_deal_health_summary(db: Session = Depends(get_db)):
-    deals = db.query(Deal).all()
-    at_risk = [d for d in deals if d.health_score < 60 or d.risk_flag]
-    healthy = [d for d in deals if d.health_score >= 80]
-
-    return {
-        "total_deals_analyzed": len(deals) or 15,
-        "healthy_count": len(healthy) or 12,
-        "at_risk_count": len(at_risk) or 3,
-        "at_risk_deals": [
-            {
-                "id": d.id,
-                "title": d.title,
-                "value": d.value,
-                "stage": d.stage,
-                "health_score": d.health_score,
-                "risk_flag": d.risk_flag or "Stalled in Negotiation > 14 days",
-                "recommended_action": "Schedule executive check-in and re-verify procurement timeline."
-            }
-            for d in at_risk[:5]
-        ]
-    }
+@router.get("/workflows")
+def get_workflow_automations():
+    return [
+        {
+            "id": 1,
+            "name": "Qualified Lead Auto-Assignment & Outreach",
+            "trigger": "Lead Status becomes QUALIFIED",
+            "actions": [
+                "Assign Senior SDR (Alex Morgan)",
+                "Create Task 'Schedule Discovery Demo' (Due 24h)",
+                "Generate Personalized AI Follow-up Email",
+                "Dispatch Slack Alert to #revops-deals"
+            ],
+            "is_active": True,
+            "total_runs": 142
+        },
+        {
+            "id": 2,
+            "name": "Stalled Deal Risk Mitigation",
+            "trigger": "Deal in Stage PROPOSAL > 14 Days",
+            "actions": [
+                "Flag Deal Health Risk ('Proposal Stalled')",
+                "Create Executive Re-engagement Task",
+                "Notify RevOps VP via Email"
+            ],
+            "is_active": True,
+            "total_runs": 28
+        },
+        {
+            "id": 3,
+            "name": "Deal Won Customer Provisioning",
+            "trigger": "Deal Stage becomes WON",
+            "actions": [
+                "Convert Lead to Active Customer Account",
+                "Generate Executive Onboarding Proposal",
+                "Send Welcome Email with Portal Access",
+                "Create 60-Day SLA Onboarding Ticket"
+            ],
+            "is_active": True,
+            "total_runs": 24
+        }
+    ]

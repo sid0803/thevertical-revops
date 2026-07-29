@@ -15,26 +15,31 @@ import {
   Bell,
   Settings,
   Sparkles,
-  ChevronRight,
+  Zap,
+  Mail,
+  UserCheck,
   LogOut
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-export const Sidebar = () => {
+export const Sidebar = ({ onOpenCopilot }) => {
   const { user, logout } = useAuth();
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Customers', path: '/customers', icon: Users, badge: 'Active' },
+    { name: 'Customer 360', path: '/customer-360', icon: UserCheck, badge: 'Unified' },
+    { name: 'Customers', path: '/customers', icon: Users },
     { name: 'Companies', path: '/companies', icon: Building2 },
     { name: 'Contacts', path: '/contacts', icon: Contact },
     { name: 'Leads', path: '/leads', icon: Flame, badge: 'Hot' },
     { name: 'Deals', path: '/deals', icon: Briefcase },
     { name: 'Pipeline', path: '/pipeline', icon: Kanban },
+    { name: 'Email Inbox', path: '/inbox', icon: Mail, count: 2 },
+    { name: 'Workflows', path: '/workflows', icon: Zap, badge: 'Auto' },
     { name: 'Calendar', path: '/calendar', icon: Calendar },
     { name: 'Tasks', path: '/tasks', icon: CheckSquare },
     { name: 'Analytics', path: '/analytics', icon: BarChart3 },
-    { name: 'AI Assistant', path: '/ai-assistant', icon: Bot, isAI: true },
+    { name: 'AI Studio', path: '/ai-assistant', icon: Bot },
     { name: 'Notifications', path: '/notifications', icon: Bell, count: 3 },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
@@ -55,8 +60,22 @@ export const Sidebar = () => {
           </div>
         </div>
 
+        {/* Copilot Quick Launch Button */}
+        <div className="px-3 pt-3">
+          <button
+            onClick={onOpenCopilot}
+            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-purple-600/30 to-indigo-600/30 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center justify-between hover:border-purple-400 transition-all shadow-md shadow-purple-500/10 group"
+          >
+            <div className="flex items-center gap-2">
+              <Bot className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
+              <span>Sales Copilot</span>
+            </div>
+            <span className="px-1.5 py-0.5 text-[9px] bg-purple-500/30 rounded text-purple-300">⌘K</span>
+          </button>
+        </div>
+
         {/* Navigation Items */}
-        <nav className="px-3 py-4 space-y-1 max-h-[calc(100vh-140px)] overflow-y-auto">
+        <nav className="px-3 py-3 space-y-0.5 max-h-[calc(100vh-210px)] overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -64,26 +83,24 @@ export const Sidebar = () => {
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                  `flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 group ${
                     isActive
-                      ? item.isAI
-                        ? 'bg-gradient-to-r from-purple-600/30 to-pink-600/30 border border-purple-500/40 text-white font-semibold shadow-md shadow-purple-500/10'
-                        : 'bg-white/10 text-white font-semibold border border-white/10 shadow-sm'
+                      ? 'bg-white/10 text-white font-semibold border border-white/10 shadow-sm'
                       : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`
                 }
               >
-                <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 transition-transform group-hover:scale-110 ${item.isAI ? 'text-purple-400' : ''}`} />
+                <div className="flex items-center gap-2.5">
+                  <Icon className="w-4 h-4 transition-transform group-hover:scale-110 text-slate-400 group-hover:text-purple-400" />
                   <span>{item.name}</span>
                 </div>
                 {item.badge && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold tracking-wide uppercase rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  <span className="px-2 py-0.5 text-[9px] font-bold tracking-wide uppercase rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
                     {item.badge}
                   </span>
                 )}
                 {item.count && (
-                  <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded-full bg-rose-500 text-white">
+                  <span className="w-4 h-4 flex items-center justify-center text-[9px] font-bold rounded-full bg-rose-500 text-white">
                     {item.count}
                   </span>
                 )}
@@ -100,7 +117,7 @@ export const Sidebar = () => {
             <img
               src={user?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80'}
               alt="User Avatar"
-              className="w-9 h-9 rounded-full object-cover ring-2 ring-purple-500/40"
+              className="w-8 h-8 rounded-full object-cover ring-2 ring-purple-500/40"
             />
             <div className="overflow-hidden">
               <p className="text-xs font-semibold text-white truncate">{user?.full_name || 'Alex Morgan'}</p>
